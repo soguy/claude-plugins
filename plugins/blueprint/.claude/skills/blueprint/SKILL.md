@@ -433,12 +433,20 @@ PM owns or delegates, no code changes required.
 
 ## Step 8 — Install project-doctor
 
-1. Check `~/.claude/plugins/installed_plugins.json` for a key containing `project-doctor`
-2. Check `.claude/skills/project-doctor/SKILL.md` in the current project
+Read `~/.claude/plugins/installed_plugins.json` and check for any key containing `project-doctor`.
 
-If neither exists → write the full project-doctor SKILL.md content to `.claude/skills/project-doctor/SKILL.md`. (Use the content from the project-doctor skill in the same marketplace — `/plugin marketplace add https://github.com/soguy/skills.git` then reference it, or embed the content directly.)
+- **Found** → already installed, skip. Do not write any skill file.
+- **Not found** → tell the user:
 
-Wire `review-strategy.md` managed section to point to `/project-doctor` regardless of whether it was just installed or already present.
+  > `project-doctor` is not installed. Run the following to install it:
+  > ```
+  > /plugin install https://github.com/soguy/skills.git project-doctor
+  > ```
+  > Re-run `/blueprint` after installing to complete setup.
+
+  Then **stop** — do not write a local skill file or embed content inline.
+
+Wire `review-strategy.md` managed section to point to `/project-doctor` regardless of install status.
 
 ---
 
