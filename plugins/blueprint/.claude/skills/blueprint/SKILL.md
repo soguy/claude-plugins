@@ -436,7 +436,7 @@ PM owns or delegates, no code changes required.
 1. Check `~/.claude/plugins/installed_plugins.json` for a key containing `project-doctor`
 2. Check `.claude/skills/project-doctor/SKILL.md` in the current project
 
-If neither exists → write the full project-doctor SKILL.md content to `.claude/skills/project-doctor/SKILL.md`. (Use the content from the project-doctor skill in the same marketplace — `/plugin marketplace add soguy/claude-plugins` then reference it, or embed the content directly.)
+If neither exists → write the full project-doctor SKILL.md content to `.claude/skills/project-doctor/SKILL.md`. (Use the content from the project-doctor skill in the same marketplace — `/plugin marketplace add https://github.com/soguy/ai-workflow-plugins.git` then reference it, or embed the content directly.)
 
 Wire `review-strategy.md` managed section to point to `/project-doctor` regardless of whether it was just installed or already present.
 
