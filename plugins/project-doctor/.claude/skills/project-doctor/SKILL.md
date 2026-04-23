@@ -18,7 +18,7 @@ Before doing anything else, understand the project:
 3. Identify the primary language(s), framework(s), and test runner.
 4. Note any CI config (`.github/workflows`, `Makefile`, `Justfile`) — these reveal the canonical build/test/lint commands.
 
-Summarize your findings to the user in 3–5 bullet points before proceeding, then ask if there are areas to prioritize or skip.
+Summarize your findings to the user in 3–5 bullet points, then proceed immediately to Phase 0.5.
 
 ---
 
@@ -27,6 +27,8 @@ Summarize your findings to the user in 3–5 bullet points before proceeding, th
 Before deeper analysis, run the `simplify` skill on any recently changed code. This catches reuse, quality, and efficiency issues introduced by recent work before they get baked in further.
 
 Invoke: use the `Skill` tool with `skill: "simplify"`.
+
+When simplify completes, **do not pause or wait for user input** — proceed immediately to Phase 1.
 
 ---
 
@@ -229,6 +231,19 @@ Severity levels: 🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM | 🔵 LOW | ℹ️ INF
 - SECURITY(review) items: <list with file:line>
 - Pre-existing test failures: <list>
 - Missing tooling: <e.g., "no test suite found">
+
+### Unfixed Findings
+List every finding that was **not** fixed — regardless of reason (low severity, needs architectural decision, ambiguous, out of scope). For each:
+
+| # | Severity | Category | Description | File:Line | Why not fixed |
+|---|----------|----------|-------------|-----------|---------------|
+| 1 | 🔵 | Config | Debug mode enabled by default | settings.py:5 | Low priority |
+| 2 | 🟡 | Auth | No rate limiting on login | auth.py:80 | Architectural decision needed |
+
+After presenting the full report, ask the user:
+> "There are <N> unfixed findings above. Would you like me to fix any or all of them?"
+
+If the user says yes (to all or some), fix them now and update the report.
 
 ### Recommended Next Steps
 <3–5 actionable items, security fixes first>
