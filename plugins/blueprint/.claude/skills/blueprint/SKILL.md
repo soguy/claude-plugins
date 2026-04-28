@@ -9,7 +9,7 @@ description: "Set up a structured AI-assisted development workflow for your proj
 
 **blueprint** sets up a structured AI-assisted development workflow for your project. It installs:
 
-- **Agent roles** — PM, Tech Lead, Dev Worker, QA Verifier, DevOps (real Claude Code subagents)
+- **Agent roles** — PM, Tech Lead, Dev, QA, DevOps (real Claude Code subagents)
 - **Four-track process** — Track 0 — Hotfix (emergency fix), Track 1 — Major (brainstorm + spec + architectural review), Track 2 — Standard (normal feature or fix), Track 3 — Non-Code (docs, planning, research)
 - **`/run` skill** — executes any task autonomously through the full agent pipeline
 - **project-doctor** — mandatory deep review gate for Track 1 — Major work
@@ -27,7 +27,7 @@ Once set up, `/run` drives the full pipeline: classify → spec → plan → imp
 
 Print the following before doing anything else:
 
-> **blueprint** sets up a structured AI-assisted development workflow for your project. It installs real Claude Code agent roles (PM, Tech Lead, Dev Worker, QA Verifier, DevOps), a four-track process, deep code review via project-doctor, and configures everything specifically for your tech stack.
+> **blueprint** sets up a structured AI-assisted development workflow for your project. It installs real Claude Code agent roles (PM, Tech Lead, Dev, QA, DevOps), a four-track process, deep code review via project-doctor, and configures everything specifically for your tech stack.
 >
 > Once set up, use `/run <task>` to execute any task through the full autonomous pipeline — the agents will classify, spec, plan, implement, verify, and review without you having to drive each step. Use `/run --auto <task>` to also auto-accept review gates (clarifying questions are always asked).
 >
@@ -106,8 +106,8 @@ Present the default roles and offer customization before writing any files.
 |------|--------------------------|
 | PM | Task classification, specs, acceptance criteria, closeout |
 | Tech Lead | Architecture, delegation, review, PR readiness |
-| Dev Worker | Implementation, tests, verification docs |
-| QA Verifier | Independent verification using project verification profile |
+| Dev | Implementation, tests, verification docs |
+| QA | Independent verification using project verification profile |
 | DevOps | Deployment and deployment verification |
 
 Check `.claude/agents/` for existing role files. If found, display the current managed section content so the user can see what is already configured.
@@ -194,13 +194,13 @@ Write each file below. Substitute `[GENERATED: ...]` placeholders with content d
 Always classify work into a track before acting. Reference tracks by number and title.
 
 **Track 0 — Hotfix** — Production incident. Speed over process. No spec phase.
-Pipeline: Tech Lead triage → Dev Worker fix → QA smoke test → DevOps deploy → PM documents after.
+Pipeline: Tech Lead triage → Dev fix → QA smoke test → DevOps deploy → PM documents after.
 
 **Track 1 — Major** — Significant change requiring brainstorming, PRD, spec, and architectural review. Mandatory `/project-doctor` review before merge.
-Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev Worker (implement) → QA → Tech Lead review (incl. project-doctor) → DevOps (if needed) → PM closeout.
+Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → DevOps (if needed) → PM closeout.
 
 **Track 2 — Standard** — Normal feature or fix.
-Pipeline: PM (spec) → Tech Lead (plan) → Dev Worker (implement) → QA → Tech Lead review → DevOps (if needed) → PM closeout.
+Pipeline: PM (spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review → DevOps (if needed) → PM closeout.
 
 **Track 3 — Non-Code** — Documentation, planning, research. No code changes.
 Pipeline: PM owns or delegates entirely.
@@ -298,7 +298,7 @@ You are the Tech Lead agent in the autonomous development pipeline.
 2. Check `.claude/workflow/run-mode.md` for mode.
 3. Invoke `superpowers:writing-plans` using the spec as input.
 4. In **autonomous mode**: auto-accept plan review gates.
-5. When `writing-plans` finishes, do NOT surface the execution choice question ("subagent-driven or inline?") to the user — the `/run` pipeline controls Dev Worker invocation. Write `.claude/workflow/handoff-tech-lead.md` and exit.
+5. When `writing-plans` finishes, do NOT surface the execution choice question ("subagent-driven or inline?") to the user — the `/run` pipeline controls Dev invocation. Write `.claude/workflow/handoff-tech-lead.md` and exit.
 
 **Your role in the review stage (invoked after QA):**
 
@@ -329,7 +329,7 @@ Track N — Title
 - Key architectural decisions: [listed inline]
 
 ## Notes for next stage
-[Anything dev-worker needs to know beyond the plan]
+[Anything dev needs to know beyond the plan]
 ```
 
 **Handoff doc to write** (review stage): `.claude/workflow/handoff-review.md`
@@ -358,17 +358,17 @@ Track N — Title
 
 ---
 
-#### `.claude/agents/dev-worker.md`
+#### `.claude/agents/dev.md`
 
 ```markdown
 ---
 # scaffold:begin managed frontmatter
-name: dev-worker
+name: dev
 description: Implements assigned changes, writes tests, and documents verification steps. Use for code implementation tasks.
 # scaffold:end managed frontmatter
 ---
-<!-- scaffold:begin managed dev-worker-role -->
-You are the Dev Worker agent in the autonomous development pipeline.
+<!-- scaffold:begin managed dev-role -->
+You are the Dev agent in the autonomous development pipeline.
 
 **Your role when invoked by `/run`:**
 
@@ -376,12 +376,12 @@ You are the Dev Worker agent in the autonomous development pipeline.
 2. Check `.claude/workflow/run-mode.md` for mode.
 3. Invoke `superpowers:executing-plans` with the plan (or fix list). **Automatically select subagent-driven execution — do not ask the user to choose.**
 4. In **autonomous mode**: auto-accept execution checkpoints and review gates within executing-plans.
-5. Write `.claude/workflow/handoff-dev-worker.md`.
+5. Write `.claude/workflow/handoff-dev.md`.
 
-**Handoff doc to write:** `.claude/workflow/handoff-dev-worker.md`
+**Handoff doc to write:** `.claude/workflow/handoff-dev.md`
 
 ```markdown
-# Handoff: Dev Worker
+# Handoff: Dev
 
 ## Status
 complete | blocked | needs-input
@@ -400,38 +400,38 @@ Track N — Title
 ## Notes for next stage
 [Anything QA needs to know to verify this change]
 ```
-<!-- scaffold:end managed dev-worker-role -->
+<!-- scaffold:end managed dev-role -->
 ```
 
 ---
 
-#### `.claude/agents/qa-verifier.md`
+#### `.claude/agents/qa.md`
 
 ```markdown
 ---
 # scaffold:begin managed frontmatter
-name: qa-verifier
+name: qa
 description: Independently verifies changes meet acceptance criteria. Use after implementation to verify correctness and run tests.
 # scaffold:end managed frontmatter
 ---
-<!-- scaffold:begin managed qa-verifier-role -->
-You are the QA Verifier agent in the autonomous development pipeline.
+<!-- scaffold:begin managed qa-role -->
+You are the QA agent in the autonomous development pipeline.
 
 **Your role when invoked by `/run`:**
 
-1. Read `.claude/workflow/handoff-dev-worker.md` for what was implemented and how to verify it.
+1. Read `.claude/workflow/handoff-dev.md` for what was implemented and how to verify it.
 2. Read `.claude/workflow/handoff-pm.md` for the acceptance criteria.
 3. Use the project verification profile in `.claude/project-artifacts/verification/`.
 4. For browser-based projects: use Playwright MCP (`mcp__playwright__*`) if available.
 5. Run all tests and verify every acceptance criterion.
 6. Write `.claude/workflow/handoff-qa.md`.
 
-**Critical:** If issues are found, list each one precisely and specifically in the handoff doc so dev-worker knows exactly what to fix. Vague issue descriptions cause fix loops to fail.
+**Critical:** If issues are found, list each one precisely and specifically in the handoff doc so dev knows exactly what to fix. Vague issue descriptions cause fix loops to fail.
 
 **Handoff doc to write:** `.claude/workflow/handoff-qa.md`
 
 ```markdown
-# Handoff: QA Verifier
+# Handoff: QA
 
 ## Status
 complete | issues-found
@@ -452,7 +452,7 @@ Track N — Title
 ## Notes for next stage
 [For tech-lead review: overall quality assessment]
 ```
-<!-- scaffold:end managed qa-verifier-role -->
+<!-- scaffold:end managed qa-role -->
 ```
 
 ---
@@ -478,7 +478,7 @@ You are the DevOps agent in the autonomous development pipeline.
 5. Write `.claude/workflow/handoff-devops.md`.
 
 **Issue classification:** If deployment fails, determine the cause:
-- **Code issue** (tests pass locally but fail in deploy environment, runtime error): set status `issues-found` and note `issue-type: code` — the pipeline will route back to dev-worker.
+- **Code issue** (tests pass locally but fail in deploy environment, runtime error): set status `issues-found` and note `issue-type: code` — the pipeline will route back to dev.
 - **Infrastructure/deploy issue** (network, permissions, environment config): set status `issues-found` and note `issue-type: deploy` — the pipeline will retry DevOps.
 - **External blocker** (third-party service down, credential expired): set status `blocked`.
 
@@ -726,7 +726,7 @@ Use `/run <task>` to execute any task autonomously. Use `/run --auto <task>` to 
 **When:** Production incident. Speed is critical.
 
 **Pipeline:**
-Tech Lead (triage + fix plan) → Dev Worker (implement fix) → QA Verifier (smoke test) → DevOps (deploy) → PM (document after)
+Tech Lead (triage + fix plan) → Dev (implement fix) → QA (smoke test) → DevOps (deploy) → PM (document after)
 
 **Notes:** No spec phase. PM runs at closeout only to document what happened.
 
@@ -737,7 +737,7 @@ Tech Lead (triage + fix plan) → Dev Worker (implement fix) → QA Verifier (sm
 **When:** Significant change requiring product brainstorming, PRD, spec, and architectural review.
 
 **Pipeline:**
-PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) → Dev Worker (executing-plans) → QA Verifier (full verification) → Tech Lead (final review + mandatory project-doctor) → DevOps (if deployment required) → PM (closeout)
+PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (full verification) → Tech Lead (final review + mandatory project-doctor) → DevOps (if deployment required) → PM (closeout)
 
 **Notes:** `/project-doctor` is mandatory before Tech Lead gives final approval.
 
@@ -748,7 +748,7 @@ PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) 
 **When:** Normal feature or bug fix.
 
 **Pipeline:**
-PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev Worker (executing-plans) → QA Verifier (verification) → Tech Lead (final review) → DevOps (if deployment required) → PM (closeout)
+PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (verification) → Tech Lead (final review) → DevOps (if deployment required) → PM (closeout)
 
 ---
 
@@ -804,7 +804,7 @@ Execute a development task through the full autonomous agent pipeline.
 
 ## What this does
 
-Classifies your task into a track, then runs it through the appropriate agents in sequence: PM → Tech Lead → Dev Worker → QA → Tech Lead review → DevOps → PM closeout. Issues are fixed automatically by looping back to the appropriate stage. Only genuine blockers or input requests pause the pipeline.
+Classifies your task into a track, then runs it through the appropriate agents in sequence: PM → Tech Lead → Dev → QA → Tech Lead review → DevOps → PM closeout. Issues are fixed automatically by looping back to the appropriate stage. Only genuine blockers or input requests pause the pipeline.
 
 ## Before starting
 
@@ -855,10 +855,10 @@ Example:
 ```
 [1/7] PM — Track 1 — Major detected. Writing spec...         ✓
 [2/7] Tech Lead — Planning implementation...                  ✓
-[3/7] Dev Worker — Implementing...                            ✓
-[4/7] QA Verifier — Verifying...                             ✗ 2 issues found
-[3/7] Dev Worker — Fixing issues (attempt 1/3)...            ✓
-[4/7] QA Verifier — Re-verifying...                          ✓
+[3/7] Dev — Implementing...                            ✓
+[4/7] QA — Verifying...                             ✗ 2 issues found
+[3/7] Dev — Fixing issues (attempt 1/3)...            ✓
+[4/7] QA — Re-verifying...                          ✓
 [5/7] Tech Lead — Final review + project-doctor...           ✓
 [6/7] DevOps — Deploying...                                  ✓
 [7/7] PM — Closeout...                                       ✓
@@ -870,10 +870,10 @@ When a stage returns `issues-found`, route back as follows:
 
 | Stage with issues | Route back to |
 |---|---|
-| QA Verifier | Dev Worker → QA Verifier |
-| Tech Lead (review) | Dev Worker → QA Verifier → Tech Lead (review) |
-| project-doctor (inside Tech Lead review) | Dev Worker → QA Verifier → Tech Lead (review, includes project-doctor) |
-| DevOps — `issue-type: code` | Dev Worker → QA Verifier → Tech Lead (review) → DevOps |
+| QA | Dev → QA |
+| Tech Lead (review) | Dev → QA → Tech Lead (review) |
+| project-doctor (inside Tech Lead review) | Dev → QA → Tech Lead (review, includes project-doctor) |
+| DevOps — `issue-type: code` | Dev → QA → Tech Lead (review) → DevOps |
 | DevOps — `issue-type: deploy` | DevOps retry |
 
 To determine DevOps issue type: read the `## Issues found` section of `handoff-devops.md` for the `issue-type:` line.
@@ -885,8 +885,8 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 **Track 0 — Hotfix** (skip PM spec, start with Tech Lead):
 ```
 [1] Tech Lead — triage, plan the fix
-[2] Dev Worker — implement fix
-[3] QA Verifier — smoke test
+[2] Dev — implement fix
+[3] QA — smoke test
 [4] DevOps — deploy
 [5] PM — document what happened (closeout only)
 ```
@@ -895,8 +895,8 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 ```
 [1] PM — brainstorm + spec (stop before writing-plans)
 [2] Tech Lead — write-plans
-[3] Dev Worker — executing-plans
-[4] QA Verifier — full verification
+[3] Dev — executing-plans
+[4] QA — full verification
 [5] Tech Lead — final review + project-doctor
 [6] DevOps — deploy (if task requires deployment)
 [7] PM — closeout
@@ -906,8 +906,8 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 ```
 [1] PM — spec + acceptance criteria
 [2] Tech Lead — write-plans
-[3] Dev Worker — executing-plans
-[4] QA Verifier — verification
+[3] Dev — executing-plans
+[4] QA — verification
 [5] Tech Lead — final review
 [6] DevOps — deploy (if task requires deployment)
 [7] PM — closeout
@@ -992,7 +992,7 @@ Re-run `/blueprint` anytime to refresh configuration, add roles, or update to a 
 When the user says the stack is unknown or cannot be detected, create only the structural files:
 
 - `CLAUDE.md` — full content with track instructions managed section
-- `.claude/agents/pm.md`, `tech-lead.md`, `dev-worker.md`, `qa-verifier.md`, `devops.md` — full content as defined in Step 7 (with YAML frontmatter managed sections and pipeline-aware bodies), no role customization prompt in pending mode
+- `.claude/agents/pm.md`, `tech-lead.md`, `dev.md`, `qa.md`, `devops.md` — full content as defined in Step 7 (with YAML frontmatter managed sections and pipeline-aware bodies), no role customization prompt in pending mode
 - `.claude/skills/run/SKILL.md` — full /run skill as defined in Step 7
 - `.claude/workflow/.gitkeep` — creates the workflow directory
 - `docs/process/tracks.md` — full content as above
