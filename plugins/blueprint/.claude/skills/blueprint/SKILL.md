@@ -717,14 +717,56 @@ Write the detected stack name, e.g.: `astro-static`
 ```markdown
 # Tracks
 
-## Track 1
-PM → Tech Lead → Devs → QA → mandatory `/project-doctor` review → Tech Lead → DevOps if needed → PM
+Use `/run <task>` to execute any task autonomously. Use `/run --auto <task>` to also auto-accept review gates.
 
-## Track 2
-PM → Tech Lead → Devs → QA → Tech Lead → DevOps if needed → PM
+---
 
-## Track 3
-PM owns or delegates, no code changes required.
+## Track 0 — Hotfix
+
+**When:** Production incident. Speed is critical.
+
+**Pipeline:**
+Tech Lead (triage + fix plan) → Dev Worker (implement fix) → QA Verifier (smoke test) → DevOps (deploy) → PM (document after)
+
+**Notes:** No spec phase. PM runs at closeout only to document what happened.
+
+---
+
+## Track 1 — Major
+
+**When:** Significant change requiring product brainstorming, PRD, spec, and architectural review.
+
+**Pipeline:**
+PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) → Dev Worker (executing-plans) → QA Verifier (full verification) → Tech Lead (final review + mandatory project-doctor) → DevOps (if deployment required) → PM (closeout)
+
+**Notes:** `/project-doctor` is mandatory before Tech Lead gives final approval.
+
+---
+
+## Track 2 — Standard
+
+**When:** Normal feature or bug fix.
+
+**Pipeline:**
+PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev Worker (executing-plans) → QA Verifier (verification) → Tech Lead (final review) → DevOps (if deployment required) → PM (closeout)
+
+---
+
+## Track 3 — Non-Code
+
+**When:** Documentation, planning, research — no code changes required.
+
+**Pipeline:**
+PM owns entirely or delegates. No dev, QA, or deploy stages.
+
+---
+
+## Auto-heal
+
+If any stage finds issues, `/run` automatically routes back to the appropriate fix stage and loops until resolved. The pipeline pauses only for:
+- Genuine blockers requiring external action
+- Ambiguous input requiring your decision
+- 3 failed fix attempts on the same issue
 ```
 
 ---
