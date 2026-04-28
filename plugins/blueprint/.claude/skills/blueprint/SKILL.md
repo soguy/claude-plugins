@@ -721,6 +721,21 @@ PM owns or delegates, no code changes required.
 
 ---
 
+#### `.claude/workflow/.gitkeep`
+
+Create this file with empty content. This creates the workflow directory for runtime handoff docs.
+
+Then add `.claude/workflow/` to the project's `.gitignore` if a `.gitignore` exists:
+
+```
+# Blueprint workflow runtime artifacts
+.claude/workflow/
+```
+
+If no `.gitignore` exists, note in the Step 9 report under "Needs attention": "Add `.claude/workflow/` to `.gitignore` to exclude runtime handoff docs from version control."
+
+---
+
 ## Step 8 — Install project-doctor
 
 Read `~/.claude/plugins/installed_plugins.json` and check for any key containing `project-doctor`.
