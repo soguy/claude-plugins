@@ -10,12 +10,14 @@ description: "Set up a structured AI-assisted development workflow for your proj
 **blueprint** sets up a structured AI-assisted development workflow for your project. It installs:
 
 - **Agent roles** — PM, Tech Lead, Dev Worker, QA Verifier, DevOps (real Claude Code subagents)
-- **Four-track process** — Track 0 Hotfix, Track 1 Major, Track 2 Standard, Track 3 Non-Code
+- **Four-track process** — Track 0 — Hotfix (emergency fix), Track 1 — Major (brainstorm + spec + architectural review), Track 2 — Standard (normal feature or fix), Track 3 — Non-Code (docs, planning, research)
 - **`/run` skill** — executes any task autonomously through the full agent pipeline
 - **project-doctor** — mandatory deep review gate for Track 1 — Major work
 - **Tech stack configuration** — layer, test commands, verification strategy, and deploy setup tailored to your actual project
 
 Use `/run <task>` to execute a task autonomously. Use `/run --auto <task>` to also auto-accept review gates.
+
+Once set up, `/run` drives the full pipeline: classify → spec → plan → implement → verify → review — without you having to manage each step.
 
 **Re-run `/blueprint` anytime:** after a stack change, to refresh stale config, or to pull improvements from a newer skill version. Re-runs are safe — manually added content is never overwritten.
 
