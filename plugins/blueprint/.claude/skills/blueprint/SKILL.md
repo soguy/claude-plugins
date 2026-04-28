@@ -970,17 +970,19 @@ Print this summary:
 
 ### Agent roles
 [list all roles — default ones marked (default), customised ones marked (customised), new ones marked (new)]
+[confirm each is a real Claude Code subagent with YAML frontmatter]
 
 ### Skipped (already customised — manual content preserved)
 [list files that exist without managed sections]
 
 ### Needs attention
-[anything that couldn't be auto-filled, e.g. environments.md if no deploy target was detected, missing test commands]
+[anything that couldn't be auto-filled, e.g. environments.md if no deploy target was detected, missing test commands, .gitignore not updated]
 
 ---
-From now on, Claude will classify every task as Track 1, 2, or 3 before acting.
-Use /project-doctor for Track 1 deep review before merge.
-Re-run /blueprint anytime to refresh your configuration or add/update roles.
+Use `/run <task>` to execute any task through the autonomous agent pipeline.
+Use `/run --auto <task>` to also auto-accept review and approval gates.
+Use `/project-doctor` for Track 1 — Major deep review before merge (also run automatically by /run).
+Re-run `/blueprint` anytime to refresh configuration, add roles, or update to a newer version.
 ```
 
 ---
