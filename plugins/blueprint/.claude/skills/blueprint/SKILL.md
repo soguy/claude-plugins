@@ -505,17 +505,46 @@ Track N — Title
 
 #### Custom roles and modified responsibilities (from Step 5)
 
-For each **modified default role**: replace the managed section content with the user-provided text instead of the default.
+For each **modified default role**: replace the managed section content with the user-provided text instead of the default. The frontmatter managed section is also regenerated with the default description — if the user provided a custom description, use that instead.
 
 For each **new role** collected in Step 5, create `.claude/agents/<role-name>.md`:
 
 ```markdown
+---
+# scaffold:begin managed frontmatter
+name: <role-name>
+description: [Derive a one-sentence description from the user-provided responsibility text. Should describe what the role owns and when to use it.]
+# scaffold:end managed frontmatter
+---
 <!-- scaffold:begin managed <role-name>-role -->
+You are the <Role Name> agent in the autonomous development pipeline.
+
 [User-provided responsibility description]
+
+**When invoked by `/run`:**
+Follow your responsibilities above. Check `.claude/workflow/run-mode.md` for mode. In autonomous mode, auto-accept review gates. Write a handoff doc to `.claude/workflow/handoff-<role-name>.md` when your stage is complete.
+
+**Handoff doc to write:** `.claude/workflow/handoff-<role-name>.md`
+
+```markdown
+# Handoff: <Role Name>
+
+## Status
+complete | issues-found | blocked | needs-input
+
+## Summary
+[What was done this stage]
+
+## Outputs
+[Key outputs, decisions, artifacts]
+
+## Notes for next stage
+[Anything the next agent needs to know]
+```
 <!-- scaffold:end managed <role-name>-role -->
 ```
 
-New role files follow the same re-run rules: the managed section is regenerated, content outside it is never touched.
+New role files follow the same re-run rules: the managed sections (both frontmatter and body) are regenerated, content outside them is never touched.
 
 ---
 
