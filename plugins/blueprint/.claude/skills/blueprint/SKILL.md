@@ -736,6 +736,156 @@ If no `.gitignore` exists, note in the Step 9 report under "Needs attention": "A
 
 ---
 
+#### `.claude/skills/run/SKILL.md`
+
+```markdown
+---
+name: run
+description: Executes a development task through the full autonomous agent pipeline. Use /run <task> for interactive mode or /run --auto <task> to auto-accept review gates.
+---
+
+# /run
+
+Execute a development task through the full autonomous agent pipeline.
+
+**Usage:**
+- `/run <task description>` — Interactive: questions asked, review gates required
+- `/run --auto <task description>` — Autonomous: questions still asked, review/approval gates auto-accepted
+
+## What this does
+
+Classifies your task into a track, then runs it through the appropriate agents in sequence: PM → Tech Lead → Dev Worker → QA → Tech Lead review → DevOps → PM closeout. Issues are fixed automatically by looping back to the appropriate stage. Only genuine blockers or input requests pause the pipeline.
+
+## Before starting
+
+1. Create `.claude/workflow/` if it doesn't exist.
+2. Delete any existing handoff docs: remove all files matching `.claude/workflow/handoff-*.md` and `.claude/workflow/run-mode.md`.
+3. Write `.claude/workflow/run-mode.md`:
+   - Content: `autonomous` if `--auto` flag is present in the invocation, otherwise `interactive`
+4. Print:
+   > Starting pipeline for: `<task>`
+   > Mode: Interactive | Autonomous
+
+## Stage execution
+
+Work through each stage in order for the detected track (see pipelines below). After each stage:
+
+1. Read the stage's handoff doc.
+2. Check its `## Status` field.
+3. Route accordingly:
+
+| Status | Action |
+|---|---|
+| `complete` | Print `✓`, continue to next stage |
+| `issues-found` | Print `✗ <one-line summary>`, route to fix stage (see routing table), increment fix counter for this stage |
+| `blocked` | Print `⚠ BLOCKED: <reason from handoff>`, stop and surface to user |
+| `needs-input` | Print `? NEEDS INPUT: <question from handoff>`, stop and surface to user |
+
+**Loop limit:** If the fix counter for any stage reaches 3, stop and print:
+
+> ⚠ Loop limit reached (3 attempts). Here is what was tried:
+> [paste the Summary and Issues found sections from each relevant handoff doc]
+> Please review and advise on how to proceed.
+
+## Progress format
+
+Print each stage on a single line as it starts:
+
+```
+[N/Total] <Agent> — <Action>...
+```
+
+Append result when done (same line or next line):
+- `✓` for complete
+- `✗ <brief issue>` for issues-found
+- `⚠ BLOCKED` for blocked
+- `? NEEDS INPUT` for needs-input
+
+Example:
+```
+[1/7] PM — Track 1 — Major detected. Writing spec...         ✓
+[2/7] Tech Lead — Planning implementation...                  ✓
+[3/7] Dev Worker — Implementing...                            ✓
+[4/7] QA Verifier — Verifying...                             ✗ 2 issues found
+[3/7] Dev Worker — Fixing issues (attempt 1/3)...            ✓
+[4/7] QA Verifier — Re-verifying...                          ✓
+[5/7] Tech Lead — Final review + project-doctor...           ✓
+[6/7] DevOps — Deploying...                                  ✓
+[7/7] PM — Closeout...                                       ✓
+```
+
+## Auto-heal routing
+
+When a stage returns `issues-found`, route back as follows:
+
+| Stage with issues | Route back to |
+|---|---|
+| QA Verifier | Dev Worker → QA Verifier |
+| Tech Lead (review) | Dev Worker → QA Verifier → Tech Lead (review) |
+| project-doctor (inside Tech Lead review) | Dev Worker → QA Verifier → Tech Lead (review, includes project-doctor) |
+| DevOps — `issue-type: code` | Dev Worker → QA Verifier → Tech Lead (review) → DevOps |
+| DevOps — `issue-type: deploy` | DevOps retry |
+
+To determine DevOps issue type: read the `## Issues found` section of `handoff-devops.md` for the `issue-type:` line.
+
+## Pipelines by track
+
+PM classifies the track in its first stage. Read `handoff-pm.md` after the PM stage to determine which pipeline to follow.
+
+**Track 0 — Hotfix** (skip PM spec, start with Tech Lead):
+```
+[1] Tech Lead — triage, plan the fix
+[2] Dev Worker — implement fix
+[3] QA Verifier — smoke test
+[4] DevOps — deploy
+[5] PM — document what happened (closeout only)
+```
+
+**Track 1 — Major:**
+```
+[1] PM — brainstorm + spec (stop before writing-plans)
+[2] Tech Lead — write-plans
+[3] Dev Worker — executing-plans
+[4] QA Verifier — full verification
+[5] Tech Lead — final review + project-doctor
+[6] DevOps — deploy (if task requires deployment)
+[7] PM — closeout
+```
+
+**Track 2 — Standard:**
+```
+[1] PM — spec + acceptance criteria
+[2] Tech Lead — write-plans
+[3] Dev Worker — executing-plans
+[4] QA Verifier — verification
+[5] Tech Lead — final review
+[6] DevOps — deploy (if task requires deployment)
+[7] PM — closeout
+```
+
+**Track 3 — Non-Code:**
+```
+[1] PM — owns entirely, no further stages unless delegated
+```
+
+For Track 0: spawn Tech Lead first with the task and note it is a hotfix. PM runs only at closeout.
+
+For Tracks 1 and 2: spawn PM first. Read `handoff-pm.md` to confirm track before proceeding.
+
+For Track 3: spawn PM with the task. PM will own it and write handoff-pm.md when done.
+
+## DevOps stage
+
+Only run the DevOps stage if the task actually requires deployment. Signs a deployment is needed:
+- The task description mentions deploy, release, or shipping
+- The plan (handoff-tech-lead.md) includes deploy steps
+- Tech Lead review (handoff-review.md) notes deployment is required
+
+If deployment is not required, skip DevOps and go directly to PM closeout.
+```
+
+---
+
 ## Step 8 — Install project-doctor
 
 Read `~/.claude/plugins/installed_plugins.json` and check for any key containing `project-doctor`.
