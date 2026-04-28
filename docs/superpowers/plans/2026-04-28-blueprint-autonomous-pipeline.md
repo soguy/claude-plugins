@@ -242,7 +242,8 @@ You are the Tech Lead agent in the autonomous development pipeline.
 2. Check `.claude/workflow/run-mode.md` for mode.
 3. Invoke `superpowers:writing-plans` using the spec as input.
 4. In **autonomous mode**: auto-accept plan review gates.
-5. Write `.claude/workflow/handoff-tech-lead.md`.
+5. When `writing-plans` finishes and offers the execution choice ("subagent-driven or inline?"), do NOT surface this question to the user. The `/run` pipeline controls when Dev Worker is invoked. Simply write `handoff-tech-lead.md` and exit.
+6. Write `.claude/workflow/handoff-tech-lead.md`.
 
 **Your role in the review stage (invoked after QA):**
 
@@ -342,7 +343,7 @@ You are the Dev Worker agent in the autonomous development pipeline.
 
 1. Check if this is a **fix loop**: if `.claude/workflow/handoff-qa.md` exists and has status `issues-found`, read it for the list of issues to fix. Otherwise read `.claude/workflow/handoff-tech-lead.md` for the implementation plan.
 2. Check `.claude/workflow/run-mode.md` for mode.
-3. Invoke `superpowers:executing-plans` with the plan (or fix list).
+3. Invoke `superpowers:executing-plans` with the plan (or fix list). **Automatically select subagent-driven execution — do not ask the user to choose.**
 4. In **autonomous mode**: auto-accept execution checkpoints and review gates within executing-plans.
 5. Write `.claude/workflow/handoff-dev-worker.md`.
 
