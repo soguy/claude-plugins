@@ -197,7 +197,7 @@ Always classify work into a track before acting. Reference tracks by number and 
 Pipeline: Tech Lead triage → Dev Worker fix → QA smoke test → DevOps deploy → PM documents after.
 
 **Track 1 — Major** — Significant change requiring brainstorming, PRD, spec, and architectural review. Mandatory `/project-doctor` review before merge.
-Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev Worker (implement) → QA → project-doctor → Tech Lead review → DevOps (if needed) → PM closeout.
+Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev Worker (implement) → QA → Tech Lead review (incl. project-doctor) → DevOps (if needed) → PM closeout.
 
 **Track 2 — Standard** — Normal feature or fix.
 Pipeline: PM (spec) → Tech Lead (plan) → Dev Worker (implement) → QA → Tech Lead review → DevOps (if needed) → PM closeout.
@@ -233,10 +233,11 @@ You are the PM agent in the autonomous development pipeline.
    - **Track 1 — Major**: significant change needing brainstorming, PRD, spec, and architectural review
    - **Track 2 — Standard**: normal feature or fix
    - **Track 3 — Non-Code**: documentation, planning, research — no code changes
-4. For **Track 1 — Major**: invoke `superpowers:brainstorming`. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. Write `handoff-pm.md` and exit. The pipeline handles planning and implementation.
-5. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed).
-6. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `handoff-pm.md` with status `complete` when done.
-7. In **autonomous mode**: auto-accept all review and approval gates in brainstorming. Still ask clarifying questions.
+4. For **Track 0 — Hotfix**: write `.claude/workflow/handoff-pm.md` with track classification only — no spec needed. The pipeline will immediately switch to the hotfix flow (Tech Lead triage first).
+5. For **Track 1 — Major**: invoke `superpowers:brainstorming`. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. Write `.claude/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
+6. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed).
+7. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `.claude/workflow/handoff-pm.md` with status `complete` when done.
+8. In **autonomous mode**: auto-accept all review and approval gates in brainstorming. Still ask clarifying questions.
 
 **When invoked as the closeout stage** (final stage of pipeline):
 Read all `.claude/workflow/handoff-*.md` files and write the final run summary to `.claude/workflow/handoff-closeout.md`. Then print this summary to the user:
@@ -297,8 +298,7 @@ You are the Tech Lead agent in the autonomous development pipeline.
 2. Check `.claude/workflow/run-mode.md` for mode.
 3. Invoke `superpowers:writing-plans` using the spec as input.
 4. In **autonomous mode**: auto-accept plan review gates.
-5. When `writing-plans` finishes and offers the execution choice ("subagent-driven or inline?"), do NOT surface this question to the user. The `/run` pipeline controls when Dev Worker is invoked. Simply write `handoff-tech-lead.md` and exit.
-6. Write `.claude/workflow/handoff-tech-lead.md`.
+5. When `writing-plans` finishes, do NOT surface the execution choice question ("subagent-driven or inline?") to the user — the `/run` pipeline controls Dev Worker invocation. Write `.claude/workflow/handoff-tech-lead.md` and exit.
 
 **Your role in the review stage (invoked after QA):**
 
