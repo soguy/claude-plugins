@@ -191,14 +191,22 @@ Write each file below. Substitute `[GENERATED: ...]` placeholders with content d
 # Claude Project Operating Guide
 
 <!-- scaffold:begin managed track-instructions -->
-Always classify work into Track 1, Track 2, or Track 3 before acting.
+Always classify work into a track before acting. Reference tracks by number and title.
 
-**Track 1** — Risky or architectural change. Mandatory `/project-doctor` review before merge.
-**Track 2** — Normal feature or fix. Standard QA, no deep review required.
-**Track 3** — No code change. Documentation, planning, research.
+**Track 0 — Hotfix** — Production incident. Speed over process. No spec phase.
+Pipeline: Tech Lead triage → Dev Worker fix → QA smoke test → DevOps deploy → PM documents after.
 
+**Track 1 — Major** — Significant change requiring brainstorming, PRD, spec, and architectural review. Mandatory `/project-doctor` review before merge.
+Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev Worker (implement) → QA → project-doctor → Tech Lead review → DevOps (if needed) → PM closeout.
+
+**Track 2 — Standard** — Normal feature or fix.
+Pipeline: PM (spec) → Tech Lead (plan) → Dev Worker (implement) → QA → Tech Lead review → DevOps (if needed) → PM closeout.
+
+**Track 3 — Non-Code** — Documentation, planning, research. No code changes.
+Pipeline: PM owns or delegates entirely.
+
+Use `/run <task>` to execute any track autonomously. Use `/run --auto <task>` to also auto-accept review gates.
 Use the process docs and project artifacts in `.claude/` before making assumptions.
-For Track 1, `/project-doctor` is mandatory before final merge readiness.
 <!-- scaffold:end managed track-instructions -->
 ```
 
