@@ -1,6 +1,6 @@
 ---
 name: blueprint
-description: "Set up a structured AI-assisted development workflow for your project. Installs agent roles (PM, Tech Lead, Dev, QA, DevOps), a three-track process, project-doctor deep review, and configures everything for your tech stack. Run on any new or existing project. Re-run anytime to update."
+description: "Set up a structured AI-assisted development workflow for your project. Installs real Claude Code agent roles (PM, Tech Lead, Dev, QA, DevOps), a four-track process, and a /run skill that executes tasks autonomously through the full agent pipeline. Run on any new or existing project. Re-run anytime to update."
 ---
 
 # blueprint
@@ -9,12 +9,13 @@ description: "Set up a structured AI-assisted development workflow for your proj
 
 **blueprint** sets up a structured AI-assisted development workflow for your project. It installs:
 
-- **Agent roles** — PM, Tech Lead, Dev Worker, QA Verifier, DevOps
-- **Three-track process** — lightweight for small tasks, rigorous for large ones
-- **project-doctor** — mandatory deep review gate for Track 1 work
+- **Agent roles** — PM, Tech Lead, Dev Worker, QA Verifier, DevOps (real Claude Code subagents)
+- **Four-track process** — Track 0 Hotfix, Track 1 Major, Track 2 Standard, Track 3 Non-Code
+- **`/run` skill** — executes any task autonomously through the full agent pipeline
+- **project-doctor** — mandatory deep review gate for Track 1 — Major work
 - **Tech stack configuration** — layer, test commands, verification strategy, and deploy setup tailored to your actual project
 
-Once set up, Claude will automatically follow this process on every task: classify it, spec it if needed, implement it, verify it, and review it before merge.
+Use `/run <task>` to execute a task autonomously. Use `/run --auto <task>` to also auto-accept review gates.
 
 **Re-run `/blueprint` anytime:** after a stack change, to refresh stale config, or to pull improvements from a newer skill version. Re-runs are safe — manually added content is never overwritten.
 
@@ -24,9 +25,9 @@ Once set up, Claude will automatically follow this process on every task: classi
 
 Print the following before doing anything else:
 
-> **blueprint** sets up a structured AI-assisted development workflow for your project. It installs agent roles (PM, Tech Lead, Dev, QA, DevOps), a three-track process (lightweight for small tasks, rigorous for large ones), deep code review via project-doctor, and configures everything specifically for your tech stack.
+> **blueprint** sets up a structured AI-assisted development workflow for your project. It installs real Claude Code agent roles (PM, Tech Lead, Dev Worker, QA Verifier, DevOps), a four-track process, deep code review via project-doctor, and configures everything specifically for your tech stack.
 >
-> Once set up, Claude will automatically follow this process on every task — classify it, spec it if needed, implement it, verify it, and review it before merge.
+> Once set up, use `/run <task>` to execute any task through the full autonomous pipeline — the agents will classify, spec, plan, implement, verify, and review without you having to drive each step. Use `/run --auto <task>` to also auto-accept review gates (clarifying questions are always asked).
 >
 > Re-run `/blueprint` anytime: after a stack change, to update stale config, or to pull in improvements from a newer skill version. Re-runs are safe — manually added content is never overwritten.
 
