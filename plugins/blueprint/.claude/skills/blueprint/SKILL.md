@@ -992,7 +992,9 @@ Re-run `/blueprint` anytime to refresh configuration, add roles, or update to a 
 When the user says the stack is unknown or cannot be detected, create only the structural files:
 
 - `CLAUDE.md` — full content with track instructions managed section
-- `.claude/agents/pm.md`, `tech-lead.md`, `dev-worker.md`, `qa-verifier.md`, `devops.md` — full content as above (with managed sections), no role customization prompt in pending mode
+- `.claude/agents/pm.md`, `tech-lead.md`, `dev-worker.md`, `qa-verifier.md`, `devops.md` — full content as defined in Step 7 (with YAML frontmatter managed sections and pipeline-aware bodies), no role customization prompt in pending mode
+- `.claude/skills/run/SKILL.md` — full /run skill as defined in Step 7
+- `.claude/workflow/.gitkeep` — creates the workflow directory
 - `docs/process/tracks.md` — full content as above
 - `.claude/project-overrides/project-profile.md` — all sections present but values set to `[TBD — re-run /blueprint once stack is chosen]`
 - `.claude/layers/pending/README.md` — content: `Stack not yet determined. Re-run /blueprint once the technology stack is chosen.`
