@@ -166,6 +166,19 @@ Re-run rules:
 - **Missing files** → create
 - **Files without managed sections that already exist** → skip, note in report
 
+For agent files with YAML frontmatter, the same pattern applies using YAML `#` comments:
+
+```yaml
+# scaffold:begin managed frontmatter
+name: pm
+description: ...
+# scaffold:end managed frontmatter
+```
+
+Re-run rules:
+- **Inside `# scaffold:begin/end managed frontmatter`** → always regenerate
+- **Markers absent** → skip (user has customised the frontmatter)
+
 ### Files to write
 
 Write each file below. Substitute `[GENERATED: ...]` placeholders with content derived from Step 4 analysis.
