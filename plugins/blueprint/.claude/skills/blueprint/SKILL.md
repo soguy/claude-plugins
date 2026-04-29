@@ -228,19 +228,16 @@ You are the PM agent in the autonomous development pipeline.
 
 1. Read the task description passed to you.
 2. Check `.claude/workflow/run-mode.md` — content is `interactive` or `autonomous`.
-3. Classify the track:
-   - **Track 0 — Hotfix**: production incident, speed is critical
+3. Classify the track (Tracks 1–3 only — `/run` never invokes PM first for Track 0 — Hotfix):
    - **Track 1 — Major**: significant change needing brainstorming, PRD, spec, and architectural review
    - **Track 2 — Standard**: normal feature or fix
    - **Track 3 — Non-Code**: documentation, planning, research — no code changes
-4. For **Track 0 — Hotfix**: write `.claude/workflow/handoff-pm.md` with track classification only — no spec needed. The pipeline will immediately switch to the hotfix flow (Tech Lead triage first).
-5. For **Track 1 — Major**: invoke `superpowers:brainstorming`. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. Write `.claude/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
-6. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed).
-7. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `.claude/workflow/handoff-pm.md` with status `complete` when done.
-8. In **autonomous mode**: auto-accept all review and approval gates in brainstorming. Still ask clarifying questions.
+4. For **Track 1 — Major**: invoke `superpowers:brainstorming`. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. In **autonomous mode**: auto-accept all review and approval gates in brainstorming; still ask clarifying questions. Write `.claude/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
+5. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed). Write `.claude/workflow/handoff-pm.md`.
+6. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `.claude/workflow/handoff-pm.md` with status `complete` when done.
 
-**When invoked as the closeout stage** (final stage of pipeline):
-Read all `.claude/workflow/handoff-*.md` files and write the final run summary to `.claude/workflow/handoff-closeout.md`. Then print this summary to the user:
+**When invoked as the closeout stage** (final stage of pipeline — including Track 0 — Hotfix, where you run last):
+Read all `.claude/workflow/handoff-*.md` files and write the final run summary to `.claude/workflow/handoff-closeout.md`. For **Track 0 — Hotfix**: the summary should document the incident, what was fixed, and how it was deployed — not a spec-driven pipeline summary. Then print this summary to the user:
 
 ```
 ## Run complete ✓
@@ -807,6 +804,8 @@ Execute a development task through the full autonomous agent pipeline.
 Classifies your task into a track, then runs it through the appropriate agents in sequence: PM → Tech Lead → Dev → QA → Tech Lead review → DevOps → PM closeout. Issues are fixed automatically by looping back to the appropriate stage. Only genuine blockers or input requests pause the pipeline.
 
 ## Before starting
+
+**Track classification for Track 0:** Before spawning any agent, determine if this is a Track 0 — Hotfix. Signals: the task description mentions a production incident, uses the word "hotfix", says something is down or broken in production, or explicitly asks for an emergency fix. If Track 0, skip PM and spawn Tech Lead first (see pipelines below). For all other tasks, spawn PM first to classify the track.
 
 1. Create `.claude/workflow/` if it doesn't exist.
 2. Delete any existing handoff docs: remove all files matching `.claude/workflow/handoff-*.md` and `.claude/workflow/run-mode.md`.

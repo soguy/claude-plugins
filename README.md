@@ -5,7 +5,7 @@ Guy Soffer's Claude Code plugin marketplace — AI-assisted development workflow
 ## Skills
 
 ### blueprint
-Sets up a structured AI-assisted development workflow for any project. Installs agent roles, a three-track process, project-doctor deep review, and configures everything for your tech stack. Works on new and existing projects. Re-run anytime to update.
+Sets up a structured AI-assisted development workflow for any project. Installs agent roles (PM, Tech Lead, Dev, QA, DevOps), a four-track process, `/run` skill for autonomous pipeline execution, and project-doctor deep review. Configures everything for your tech stack. Works on new and existing projects. Re-run anytime to update.
 
 ### project-doctor
 Deep codebase health check: dead code removal, bug detection, security audit, sanity checks, and documentation sync. Works with any tech stack.
@@ -79,10 +79,11 @@ blueprint sets up a complete AI-assisted development workflow for any project �
 
 1. **Detects your stack** — reads `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, CI configs, and the source tree to identify your framework, test commands, and deploy target automatically.
 
-2. **Installs agent roles** — creates `.claude/agents/` files for five roles: PM (specs and acceptance criteria), Tech Lead (architecture and PR readiness), Dev Worker (implementation), QA Verifier (independent testing), and DevOps (deployment). You can customise any role's responsibilities or add new roles during setup.
+2. **Installs agent roles** — creates `.claude/agents/` files for five roles: PM (specs and acceptance criteria), Tech Lead (architecture and PR readiness), Dev (implementation), QA (independent testing), and DevOps (deployment). You can customise any role's responsibilities or add new roles during setup.
 
-3. **Sets up a three-track process** — every task gets classified before Claude acts on it:
-   - **Track 1** (risky or architectural) — mandatory `/project-doctor` deep review before merge
+3. **Sets up a four-track process** — every task gets classified before Claude acts on it:
+   - **Track 0** (hotfix) — production incident, speed over process, no spec phase
+   - **Track 1** (major) — brainstorming, PRD, spec, mandatory `/project-doctor` deep review before merge
    - **Track 2** (normal feature or fix) — standard QA, no deep review required
    - **Track 3** (no code changes) — documentation, planning, research
 
@@ -93,7 +94,7 @@ blueprint sets up a complete AI-assisted development workflow for any project �
 **Re-run anytime** with `/blueprint` after a stack change, to refresh stale config, or to add/update roles. Re-runs are safe: managed sections are regenerated, any content you've added manually is never touched.
 
 **Why it matters:**  
-Without a process, Claude will attempt tasks without classifying risk, skip verification steps, and make architectural decisions ad-hoc. blueprint forces a consistent discipline: classify first, spec if needed, implement, verify, and review before merge. The three-track system means small tasks stay lightweight while high-risk changes get appropriate gates.
+Without a process, Claude will attempt tasks without classifying risk, skip verification steps, and make architectural decisions ad-hoc. blueprint forces a consistent discipline: classify first, spec if needed, implement, verify, and review before merge. The four-track system means small tasks stay lightweight while high-risk changes get appropriate gates.
 
 ---
 
