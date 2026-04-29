@@ -242,8 +242,8 @@ You are the PM agent in the autonomous development pipeline.
    - **Track 1 — Major**: significant change needing brainstorming, PRD, spec, and architectural review
    - **Track 2 — Standard**: normal feature or fix
    - **Track 3 — Non-Code**: documentation, planning, research — no code changes
-4. For **Track 1 — Major**: invoke `superpowers:brainstorming`. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. In **autonomous mode**: auto-accept all review and approval gates in brainstorming; still ask clarifying questions. Write `.blueprint/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
-5. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed). Write `.blueprint/workflow/handoff-pm.md`.
+4. For **Track 1 — Major**: invoke `superpowers:brainstorming`. If the task involves UI/UX work (new pages, components, visual changes, user flows), also invoke `frontend-design` to inform the spec with design decisions. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. In **autonomous mode**: auto-accept all review and approval gates in brainstorming; still ask clarifying questions. Write `.blueprint/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
+5. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed). If the task involves UI/UX work, invoke `frontend-design` to inform the spec with design decisions before writing acceptance criteria. Write `.blueprint/workflow/handoff-pm.md`.
 6. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `.blueprint/workflow/handoff-pm.md` with status `complete` when done.
 
 **When invoked as the closeout stage** (final stage of pipeline — including Track 0 — Hotfix, where you run last):
