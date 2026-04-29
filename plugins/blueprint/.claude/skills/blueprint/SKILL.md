@@ -12,7 +12,7 @@ description: "Set up a structured AI-assisted development workflow for your proj
 - **Agent roles** — PM, Tech Lead, Dev, QA, DevOps (real Claude Code subagents)
 - **Four-track process** — Track 0 — Hotfix (emergency fix), Track 1 — Major (brainstorm + spec + architectural review), Track 2 — Standard (normal feature or fix), Track 3 — Non-Code (docs, planning, research)
 - **`/run` skill** — executes any task autonomously through the full agent pipeline
-- **project-doctor** — mandatory deep review gate for Track 1 — Major work
+- **project-doctor** — mandatory deep review gate for Track 1 — Major and Track 2 — Standard work
 - **Tech stack configuration** — layer, test commands, verification strategy, and deploy setup tailored to your actual project
 
 Use `/run <task>` to execute a task autonomously. Use `/run --auto <task>` to also auto-accept review gates.
@@ -211,7 +211,7 @@ Pipeline: Tech Lead triage → Dev fix → QA smoke test → Ship (if uncommitte
 Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
 
 **Track 2 — Standard** — Normal feature or fix.
-Pipeline: PM (spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
+Pipeline: PM (spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
 
 **Track 3 — Non-Code** — Documentation, planning, research. No code changes.
 Pipeline: PM owns or delegates entirely.
@@ -319,7 +319,7 @@ You are the Tech Lead agent in the autonomous development pipeline.
 1. Read `.blueprint/workflow/handoff-qa.md` for verification results.
 2. Read `.blueprint/workflow/handoff-pm.md` for acceptance criteria.
 3. Check `.blueprint/workflow/run-mode.md` for mode.
-4. For **Track 1 — Major**: invoke `/project-doctor` before assessing PR readiness.
+4. For **Track 1 — Major** or **Track 2 — Standard**: invoke `/project-doctor` before assessing PR readiness.
 5. Assess whether the implementation meets acceptance criteria and is ready to merge.
 6. In **autonomous mode**: auto-accept review gates.
 7. Write `.blueprint/workflow/handoff-review.md`.
@@ -358,7 +358,7 @@ complete | issues-found | blocked
 Track N — Title
 
 ## Summary
-[Review outcome, project-doctor result if Track 1 — Major]
+[Review outcome, project-doctor result if Track 1 or Track 2]
 
 ## Outputs
 - PR readiness: ready | not ready
@@ -676,7 +676,7 @@ List required CI and review gates.
 # Review Strategy
 
 <!-- scaffold:begin managed review-gate -->
-Track 1 requires mandatory deep review before merge.
+Track 1 and Track 2 require mandatory deep review before merge.
 Run: `/project-doctor`
 <!-- scaffold:end managed review-gate -->
 ```
@@ -771,7 +771,7 @@ PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) 
 **When:** Normal feature or bug fix.
 
 **Pipeline:**
-PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (verification) → Tech Lead (final review) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
+PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (verification) → Tech Lead (final review + project-doctor) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
 
 ---
 
@@ -940,7 +940,7 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 [2] Tech Lead — write-plans
 [3] Dev — executing-plans
 [4] QA — verification
-[5] Tech Lead — final review
+[5] Tech Lead — final review + project-doctor
 [6] PM — closeout (scope validation — gates Ship)
 [7] Ship — commit + push/PR (if uncommitted changes exist)
 [8] DevOps — deploy (if task requires deployment)
@@ -1061,7 +1061,7 @@ Print this summary:
 ---
 Use `/run <task>` to execute any task through the autonomous agent pipeline.
 Use `/run --auto <task>` to also auto-accept review and approval gates.
-Use `/project-doctor` for Track 1 — Major deep review before merge (also run automatically by /run).
+Use `/project-doctor` for deep review before merge (runs automatically in Track 1 and Track 2 via /run).
 Re-run `/blueprint` anytime to refresh configuration, add roles, or update to a newer version.
 ```
 
