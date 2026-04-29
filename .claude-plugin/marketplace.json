@@ -11,8 +11,8 @@
   "plugins": [
     {
       "name": "blueprint",
-      "description": "Set up a structured AI-assisted development workflow for any project. Installs agent roles, three-track process, and project-doctor. Configures everything for your tech stack.",
-      "version": "1.0.0",
+      "description": "Set up a structured AI-assisted development workflow for any project. Installs agent roles, four-track process, and project-doctor. Configures everything for your tech stack.",
+      "version": "2.0.0",
       "author": {
         "name": "Guy Soffer"
       },

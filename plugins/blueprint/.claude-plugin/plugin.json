@@ -1,7 +1,7 @@
 {
   "name": "blueprint",
-  "description": "Set up a structured AI-assisted development workflow for your project. Installs agent roles (PM, Tech Lead, Dev, QA, DevOps), a three-track process, project-doctor deep review, and configures everything for your tech stack.",
-  "version": "1.0.0",
+  "description": "Set up a structured AI-assisted development workflow for your project. Installs agent roles (PM, Tech Lead, Dev, QA, DevOps), a four-track process, project-doctor deep review, and configures everything for your tech stack.",
+  "version": "2.0.0",
   "author": {
     "name": "Guy Soffer"
   },

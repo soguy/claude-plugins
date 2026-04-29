@@ -39,8 +39,8 @@ Print the following before doing anything else:
 
 Check the project directory:
 
-- **Re-run**: `.claude/` directory already exists → tell user: *"Re-running blueprint — updating managed sections, leaving manual content untouched."*
-- **Existing project, first run**: Source files exist but no `.claude/`
+- **Re-run**: `.blueprint/` directory already exists → tell user: *"Re-running blueprint — updating managed sections, leaving manual content untouched."*
+- **Existing project, first run**: Source files exist but no `.blueprint/`
 - **New project, stack known**: User has told you the stack or it is obvious from files already present
 - **New project, stack unknown**: Ask — *"What technology stack are you planning to use? (Say 'unknown' to set up the structural scaffold now and complete stack config later.)"*
   - If unknown → jump to the **Pending layer** section at the bottom of this skill, then stop.
@@ -126,7 +126,7 @@ On re-run: read existing managed sections and display them before asking, so the
 
 ## Step 6 — Generate the layer
 
-Create `.claude/layers/<stack-name>/` with four files tailored to this exact project.
+Create `.blueprint/layers/<stack-name>/` with four files tailored to this exact project.
 
 **README.md** — one paragraph describing the stack and what makes it distinct
 
@@ -187,27 +187,37 @@ Write each file below. Substitute `[GENERATED: ...]` placeholders with content d
 
 #### `CLAUDE.md`
 
-```markdown
-# Claude Project Operating Guide
+Append a single include line to the project's existing `CLAUDE.md` (create the file if it doesn't exist). Do NOT write track instructions or managed sections into CLAUDE.md itself.
 
-<!-- scaffold:begin managed track-instructions -->
+```markdown
+@.blueprint/BLUEPRINT.md
+```
+
+If the line `@.blueprint/BLUEPRINT.md` already exists in `CLAUDE.md`, skip — do not duplicate it.
+
+---
+
+#### `.blueprint/BLUEPRINT.md`
+
+```markdown
+# Blueprint — Project Operating Guide
+
 Always classify work into a track before acting. Reference tracks by number and title.
 
 **Track 0 — Hotfix** — Production incident. Speed over process. No spec phase.
-Pipeline: Tech Lead triage → Dev fix → QA smoke test → DevOps deploy → PM documents after.
+Pipeline: Tech Lead triage → Dev fix → QA smoke test → Ship (if uncommitted) → DevOps deploy → PM documents after.
 
 **Track 1 — Major** — Significant change requiring brainstorming, PRD, spec, and architectural review. Mandatory `/project-doctor` review before merge.
-Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → DevOps (if needed) → PM closeout.
+Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
 
 **Track 2 — Standard** — Normal feature or fix.
-Pipeline: PM (spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review → DevOps (if needed) → PM closeout.
+Pipeline: PM (spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
 
 **Track 3 — Non-Code** — Documentation, planning, research. No code changes.
 Pipeline: PM owns or delegates entirely.
 
 Use `/run <task>` to execute any track autonomously. Use `/run --auto <task>` to also auto-accept review gates.
-Use the process docs and project artifacts in `.claude/` before making assumptions.
-<!-- scaffold:end managed track-instructions -->
+Use the process docs and project artifacts in `.blueprint/` before making assumptions.
 ```
 
 ---
@@ -227,17 +237,23 @@ You are the PM agent in the autonomous development pipeline.
 **Your role when invoked by `/run`:**
 
 1. Read the task description passed to you.
-2. Check `.claude/workflow/run-mode.md` — content is `interactive` or `autonomous`.
+2. Check `.blueprint/workflow/run-mode.md` — content is `interactive` or `autonomous`.
 3. Classify the track (Tracks 1–3 only — `/run` never invokes PM first for Track 0 — Hotfix):
    - **Track 1 — Major**: significant change needing brainstorming, PRD, spec, and architectural review
    - **Track 2 — Standard**: normal feature or fix
    - **Track 3 — Non-Code**: documentation, planning, research — no code changes
-4. For **Track 1 — Major**: invoke `superpowers:brainstorming`. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. In **autonomous mode**: auto-accept all review and approval gates in brainstorming; still ask clarifying questions. Write `.claude/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
-5. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed). Write `.claude/workflow/handoff-pm.md`.
-6. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `.claude/workflow/handoff-pm.md` with status `complete` when done.
+4. For **Track 1 — Major**: invoke `superpowers:brainstorming`. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. In **autonomous mode**: auto-accept all review and approval gates in brainstorming; still ask clarifying questions. Write `.blueprint/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
+5. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed). Write `.blueprint/workflow/handoff-pm.md`.
+6. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `.blueprint/workflow/handoff-pm.md` with status `complete` when done.
 
 **When invoked as the closeout stage** (final stage of pipeline — including Track 0 — Hotfix, where you run last):
-Read all `.claude/workflow/handoff-*.md` files and write the final run summary to `.claude/workflow/handoff-closeout.md`. For **Track 0 — Hotfix**: the summary should document the incident, what was fixed, and how it was deployed — not a spec-driven pipeline summary. Then print this summary to the user:
+
+1. Read all `.blueprint/workflow/handoff-*.md` files.
+2. **Scope validation (skip for Track 0 — Hotfix, since no initial spec exists):** Compare the actual files changed (from `handoff-dev.md` and any fix-loop handoff docs) against the original acceptance criteria in `handoff-pm.md`. If the changes are materially broader than the spec — new files not anticipated in the acceptance criteria, different components touched, behavior beyond what was specified — note `scope-expanded` in the closeout summary and list what expanded. If changes are within scope, note `scope: as-specified`.
+   - In **autonomous mode**: `scope-expanded` is informational only — does not block closeout.
+   - In **interactive mode**: if scope expanded, ask the user to confirm the expanded scope is acceptable before completing closeout.
+3. Write the final run summary to `.blueprint/workflow/handoff-closeout.md`. For **Track 0 — Hotfix**: the summary should document the incident, what was fixed, and how it was deployed — not a spec-driven pipeline summary.
+4. Print this summary to the user:
 
 ```
 ## Run complete ✓
@@ -246,11 +262,12 @@ Task: <task>
 Track: Track N — Title
 Mode: Interactive | Autonomous
 Loops: N fix iterations — [what was found and fixed per loop, or "none"]
+Scope: as-specified | scope-expanded — [if expanded: brief note of what grew]
 Artifacts: [list what was produced: spec, plan, implementation, verification report]
 Status: all acceptance criteria met
 ```
 
-**Handoff doc to write:** `.claude/workflow/handoff-pm.md`
+**Handoff doc to write:** `.blueprint/workflow/handoff-pm.md`
 
 ```markdown
 # Handoff: PM
@@ -291,23 +308,23 @@ You are the Tech Lead agent in the autonomous development pipeline.
 
 **Your role in the planning stage (invoked after PM):**
 
-1. Read `.claude/workflow/handoff-pm.md` for the spec and acceptance criteria.
-2. Check `.claude/workflow/run-mode.md` for mode.
+1. Read `.blueprint/workflow/handoff-pm.md` for the spec and acceptance criteria.
+2. Check `.blueprint/workflow/run-mode.md` for mode.
 3. Invoke `superpowers:writing-plans` using the spec as input.
 4. In **autonomous mode**: auto-accept plan review gates.
-5. When `writing-plans` finishes, do NOT surface the execution choice question ("subagent-driven or inline?") to the user — the `/run` pipeline controls Dev invocation. Write `.claude/workflow/handoff-tech-lead.md` and exit.
+5. When `writing-plans` finishes, do NOT surface the execution choice question ("subagent-driven or inline?") to the user — the `/run` pipeline controls Dev invocation. Write `.blueprint/workflow/handoff-tech-lead.md` and exit.
 
 **Your role in the review stage (invoked after QA):**
 
-1. Read `.claude/workflow/handoff-qa.md` for verification results.
-2. Read `.claude/workflow/handoff-pm.md` for acceptance criteria.
-3. Check `.claude/workflow/run-mode.md` for mode.
+1. Read `.blueprint/workflow/handoff-qa.md` for verification results.
+2. Read `.blueprint/workflow/handoff-pm.md` for acceptance criteria.
+3. Check `.blueprint/workflow/run-mode.md` for mode.
 4. For **Track 1 — Major**: invoke `/project-doctor` before assessing PR readiness.
 5. Assess whether the implementation meets acceptance criteria and is ready to merge.
 6. In **autonomous mode**: auto-accept review gates.
-7. Write `.claude/workflow/handoff-review.md`.
+7. Write `.blueprint/workflow/handoff-review.md`.
 
-**Handoff doc to write** (planning stage): `.claude/workflow/handoff-tech-lead.md`
+**Handoff doc to write** (planning stage): `.blueprint/workflow/handoff-tech-lead.md`
 
 ```markdown
 # Handoff: Tech Lead (Planning)
@@ -329,7 +346,7 @@ Track N — Title
 [Anything dev needs to know beyond the plan]
 ```
 
-**Handoff doc to write** (review stage): `.claude/workflow/handoff-review.md`
+**Handoff doc to write** (review stage): `.blueprint/workflow/handoff-review.md`
 
 ```markdown
 # Handoff: Tech Lead (Review)
@@ -369,13 +386,13 @@ You are the Dev agent in the autonomous development pipeline.
 
 **Your role when invoked by `/run`:**
 
-1. Check if this is a **fix loop**: if `.claude/workflow/handoff-qa.md` exists and has status `issues-found`, read it for the list of issues to fix. Otherwise read `.claude/workflow/handoff-tech-lead.md` for the implementation plan.
-2. Check `.claude/workflow/run-mode.md` for mode.
+1. Check if this is a **fix loop**: if `.blueprint/workflow/handoff-qa.md` exists and has status `issues-found`, read it for the list of issues to fix. Otherwise read `.blueprint/workflow/handoff-tech-lead.md` for the implementation plan.
+2. Check `.blueprint/workflow/run-mode.md` for mode.
 3. Invoke `superpowers:executing-plans` with the plan (or fix list). **Automatically select subagent-driven execution — do not ask the user to choose.**
 4. In **autonomous mode**: auto-accept execution checkpoints and review gates within executing-plans.
-5. Write `.claude/workflow/handoff-dev.md`.
+5. Write `.blueprint/workflow/handoff-dev.md`.
 
-**Handoff doc to write:** `.claude/workflow/handoff-dev.md`
+**Handoff doc to write:** `.blueprint/workflow/handoff-dev.md`
 
 ```markdown
 # Handoff: Dev
@@ -416,16 +433,24 @@ You are the QA agent in the autonomous development pipeline.
 
 **Your role when invoked by `/run`:**
 
-1. Read `.claude/workflow/handoff-dev.md` for what was implemented and how to verify it.
-2. Read `.claude/workflow/handoff-pm.md` for the acceptance criteria.
-3. Use the project verification profile in `.claude/project-artifacts/verification/`.
-4. For browser-based projects: use Playwright MCP (`mcp__playwright__*`) if available.
-5. Run all tests and verify every acceptance criterion.
-6. Write `.claude/workflow/handoff-qa.md`.
+1. Read `.blueprint/workflow/handoff-dev.md` for what was implemented and how to verify it.
+2. Read `.blueprint/workflow/handoff-pm.md` for the acceptance criteria.
+3. Read the project verification profile in `.blueprint/project-artifacts/verification/` — follow the strategy and required evidence documented there.
+4. Run all automated tests (commands from `.blueprint/project-artifacts/testing/test-commands.md`).
+5. **For browser-based projects (MANDATORY if Playwright MCP is available):**
+   - Start the dev server (or use the build preview).
+   - Use `mcp__playwright__browser_navigate` to open the relevant pages.
+   - Use `mcp__playwright__browser_snapshot` to inspect the DOM and confirm UI changes are visible (or hidden, as required).
+   - Use `mcp__playwright__browser_console_messages` with level `error` to confirm zero console errors.
+   - Check at least every affected view mentioned in the acceptance criteria.
+   - This is NOT optional. Tests passing alone is insufficient for UI changes — the app must be visually confirmed running in a browser.
+6. Write `.blueprint/workflow/handoff-qa.md`.
 
 **Critical:** If issues are found, list each one precisely and specifically in the handoff doc so dev knows exactly what to fix. Vague issue descriptions cause fix loops to fail.
 
-**Handoff doc to write:** `.claude/workflow/handoff-qa.md`
+**Critical:** Do not mark status as `complete` for UI changes without Playwright evidence. The handoff doc must include which pages were navigated and what was confirmed via snapshot or screenshot.
+
+**Handoff doc to write:** `.blueprint/workflow/handoff-qa.md`
 
 ```markdown
 # Handoff: QA
@@ -442,6 +467,7 @@ Track N — Title
 ## Outputs
 - Tests run: [list with pass/fail]
 - Acceptance criteria checked: [each criterion with pass/fail]
+- Browser verification (if UI change): [pages navigated, what was confirmed via Playwright snapshot/screenshot]
 
 ## Issues found
 [If status is issues-found: list each issue with exact reproduction steps. Empty if complete.]
@@ -468,18 +494,18 @@ You are the DevOps agent in the autonomous development pipeline.
 
 **Your role when invoked by `/run`:**
 
-1. Read `.claude/workflow/handoff-review.md` to confirm the implementation is PR-ready.
-2. Use deploy steps from `.claude/project-artifacts/deployment/deploy.md`.
+1. Read `.blueprint/workflow/handoff-review.md` to confirm the implementation is PR-ready.
+2. Use deploy steps from `.blueprint/project-artifacts/deployment/deploy.md`.
 3. Execute the deployment.
 4. Verify the deployment succeeded.
-5. Write `.claude/workflow/handoff-devops.md`.
+5. Write `.blueprint/workflow/handoff-devops.md`.
 
 **Issue classification:** If deployment fails, determine the cause:
 - **Code issue** (tests pass locally but fail in deploy environment, runtime error): set status `issues-found` and note `issue-type: code` — the pipeline will route back to dev.
 - **Infrastructure/deploy issue** (network, permissions, environment config): set status `issues-found` and note `issue-type: deploy` — the pipeline will retry DevOps.
 - **External blocker** (third-party service down, credential expired): set status `blocked`.
 
-**Handoff doc to write:** `.claude/workflow/handoff-devops.md`
+**Handoff doc to write:** `.blueprint/workflow/handoff-devops.md`
 
 ```markdown
 # Handoff: DevOps
@@ -527,9 +553,9 @@ You are the <Role Name> agent in the autonomous development pipeline.
 [User-provided responsibility description]
 
 **When invoked by `/run`:**
-Follow your responsibilities above. Check `.claude/workflow/run-mode.md` for mode. In autonomous mode, auto-accept review gates. Write a handoff doc to `.claude/workflow/handoff-<role-name>.md` when your stage is complete.
+Follow your responsibilities above. Check `.blueprint/workflow/run-mode.md` for mode. In autonomous mode, auto-accept review gates. Write a handoff doc to `.blueprint/workflow/handoff-<role-name>.md` when your stage is complete.
 
-**Handoff doc to write:** `.claude/workflow/handoff-<role-name>.md`
+**Handoff doc to write:** `.blueprint/workflow/handoff-<role-name>.md`
 
 ```markdown
 # Handoff: <Role Name>
@@ -553,7 +579,7 @@ New role files follow the same re-run rules: the managed sections (both frontmat
 
 ---
 
-#### `.claude/project-artifacts/testing/test-commands.md`
+#### `.blueprint/project-artifacts/testing/test-commands.md`
 
 ```markdown
 # Test Commands
@@ -565,7 +591,7 @@ New role files follow the same re-run rules: the managed sections (both frontmat
 
 ---
 
-#### `.claude/project-artifacts/verification/strategy.md`
+#### `.blueprint/project-artifacts/verification/strategy.md`
 
 ```markdown
 # Verification Strategy
@@ -579,7 +605,7 @@ Also specify required evidence and smoke vs deeper verification expectations.
 
 ---
 
-#### `.claude/project-artifacts/verification/browser-playwright.md` *(browser-based projects only)*
+#### `.blueprint/project-artifacts/verification/browser-playwright.md` *(browser-based projects only)*
 
 ```markdown
 # Browser Playwright
@@ -602,7 +628,7 @@ Playwright is available via MCP — use `mcp__playwright__*` tools directly. No 
 
 ---
 
-#### `.claude/project-artifacts/deployment/deploy.md`
+#### `.blueprint/project-artifacts/deployment/deploy.md`
 
 ```markdown
 # Deploy
@@ -614,7 +640,7 @@ Playwright is available via MCP — use `mcp__playwright__*` tools directly. No 
 
 ---
 
-#### `.claude/project-artifacts/deployment/environments.md`
+#### `.blueprint/project-artifacts/deployment/environments.md`
 
 ```markdown
 # Environments
@@ -624,7 +650,7 @@ Playwright is available via MCP — use `mcp__playwright__*` tools directly. No 
 
 ---
 
-#### `.claude/project-artifacts/deployment/rollback.md`
+#### `.blueprint/project-artifacts/deployment/rollback.md`
 
 ```markdown
 # Rollback
@@ -634,7 +660,7 @@ Playwright is available via MCP — use `mcp__playwright__*` tools directly. No 
 
 ---
 
-#### `.claude/project-artifacts/github/pr-checks.md` *(team projects only — skip for solo)*
+#### `.blueprint/project-artifacts/github/pr-checks.md` *(team projects only — skip for solo)*
 
 ```markdown
 # PR Checks
@@ -644,7 +670,7 @@ List required CI and review gates.
 
 ---
 
-#### `.claude/project-artifacts/review/review-strategy.md`
+#### `.blueprint/project-artifacts/review/review-strategy.md`
 
 ```markdown
 # Review Strategy
@@ -657,7 +683,7 @@ Run: `/project-doctor`
 
 ---
 
-#### `.claude/project-overrides/project-profile.md` *(skip if already exists with content)*
+#### `.blueprint/project-overrides/project-profile.md` *(skip if already exists with content)*
 
 ```markdown
 # Project Profile
@@ -689,7 +715,7 @@ Run: `/project-doctor`
 
 ---
 
-#### `.claude/project-overrides/stack-overrides.md`
+#### `.blueprint/project-overrides/stack-overrides.md`
 
 ```markdown
 # Stack Overrides
@@ -703,7 +729,7 @@ Override only what differs from the layer defaults.
 
 ---
 
-#### `.claude/project-overrides/active-layer.txt`
+#### `.blueprint/project-overrides/active-layer.txt`
 
 Write the detected stack name, e.g.: `astro-static`
 
@@ -723,7 +749,7 @@ Use `/run <task>` to execute any task autonomously. Use `/run --auto <task>` to 
 **When:** Production incident. Speed is critical.
 
 **Pipeline:**
-Tech Lead (triage + fix plan) → Dev (implement fix) → QA (smoke test) → DevOps (deploy) → PM (document after)
+Tech Lead (triage + fix plan) → Dev (implement fix) → QA (smoke test) → Ship (if uncommitted) → DevOps (deploy) → PM (document after)
 
 **Notes:** No spec phase. PM runs at closeout only to document what happened.
 
@@ -734,7 +760,7 @@ Tech Lead (triage + fix plan) → Dev (implement fix) → QA (smoke test) → De
 **When:** Significant change requiring product brainstorming, PRD, spec, and architectural review.
 
 **Pipeline:**
-PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (full verification) → Tech Lead (final review + mandatory project-doctor) → DevOps (if deployment required) → PM (closeout)
+PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (full verification) → Tech Lead (final review + mandatory project-doctor) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
 
 **Notes:** `/project-doctor` is mandatory before Tech Lead gives final approval.
 
@@ -745,7 +771,7 @@ PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) 
 **When:** Normal feature or bug fix.
 
 **Pipeline:**
-PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (verification) → Tech Lead (final review) → DevOps (if deployment required) → PM (closeout)
+PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (verification) → Tech Lead (final review) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
 
 ---
 
@@ -768,18 +794,18 @@ If any stage finds issues, `/run` automatically routes back to the appropriate f
 
 ---
 
-#### `.claude/workflow/.gitkeep`
+#### `.blueprint/workflow/.gitkeep`
 
 Create this file with empty content. This creates the workflow directory for runtime handoff docs.
 
-Then add `.claude/workflow/` to the project's `.gitignore` if a `.gitignore` exists:
+Then add `.blueprint/workflow/` to the project's `.gitignore` if a `.gitignore` exists:
 
 ```
 # Blueprint workflow runtime artifacts
-.claude/workflow/
+.blueprint/workflow/
 ```
 
-If no `.gitignore` exists, note in the Step 9 report under "Needs attention": "Add `.claude/workflow/` to `.gitignore` to exclude runtime handoff docs from version control."
+If no `.gitignore` exists, note in the Step 9 report under "Needs attention": "Add `.blueprint/workflow/` to `.gitignore` to exclude runtime handoff docs from version control."
 
 ---
 
@@ -801,15 +827,15 @@ Execute a development task through the full autonomous agent pipeline.
 
 ## What this does
 
-Classifies your task into a track, then runs it through the appropriate agents in sequence: PM → Tech Lead → Dev → QA → Tech Lead review → DevOps → PM closeout. Issues are fixed automatically by looping back to the appropriate stage. Only genuine blockers or input requests pause the pipeline.
+Classifies your task into a track, then runs it through the appropriate agents in sequence: PM → Tech Lead → Dev → QA → Tech Lead review → PM closeout (scope validation) → Ship → DevOps. Issues are fixed automatically by looping back to the appropriate stage. Only genuine blockers or input requests pause the pipeline.
 
 ## Before starting
 
 **Track classification for Track 0:** Before spawning any agent, determine if this is a Track 0 — Hotfix. Signals: the task description mentions a production incident, uses the word "hotfix", says something is down or broken in production, or explicitly asks for an emergency fix. If Track 0, skip PM and spawn Tech Lead first (see pipelines below). For all other tasks, spawn PM first to classify the track.
 
-1. Create `.claude/workflow/` if it doesn't exist.
-2. Delete any existing handoff docs: remove all files matching `.claude/workflow/handoff-*.md` and `.claude/workflow/run-mode.md`.
-3. Write `.claude/workflow/run-mode.md`:
+1. Create `.blueprint/workflow/` if it doesn't exist.
+2. Delete any existing handoff docs: remove all files matching `.blueprint/workflow/handoff-*.md` and `.blueprint/workflow/run-mode.md`.
+3. Write `.blueprint/workflow/run-mode.md`:
    - Content: `autonomous` if `--auto` flag is present in the invocation, otherwise `interactive`
 4. Print:
    > Starting pipeline for: `<task>`
@@ -829,6 +855,8 @@ Work through each stage in order for the detected track (see pipelines below). A
 | `issues-found` | Print `✗ <one-line summary>`, route to fix stage (see routing table), increment fix counter for this stage |
 | `blocked` | Print `⚠ BLOCKED: <reason from handoff>`, stop and surface to user |
 | `needs-input` | Print `? NEEDS INPUT: <question from handoff>`, stop and surface to user |
+| `skipped` | (Ship stage only) Print `✓ skipped — no uncommitted changes`, continue to next stage |
+| `scope-expanded` | (PM closeout only) Print `⚠ SCOPE EXPANDED: <summary>`. In autonomous mode: informational, continue. In interactive mode: surface to user for confirmation before completing. |
 
 **Loop limit:** If the fix counter for any stage reaches 3, stop and print:
 
@@ -849,18 +877,20 @@ Append result when done (same line or next line):
 - `✗ <brief issue>` for issues-found
 - `⚠ BLOCKED` for blocked
 - `? NEEDS INPUT` for needs-input
+- `⚠ SCOPE EXPANDED` for scope-expanded (informational in autonomous mode)
 
 Example:
 ```
-[1/7] PM — Track 1 — Major detected. Writing spec...         ✓
-[2/7] Tech Lead — Planning implementation...                  ✓
-[3/7] Dev — Implementing...                            ✓
-[4/7] QA — Verifying...                             ✗ 2 issues found
-[3/7] Dev — Fixing issues (attempt 1/3)...            ✓
-[4/7] QA — Re-verifying...                          ✓
-[5/7] Tech Lead — Final review + project-doctor...           ✓
-[6/7] DevOps — Deploying...                                  ✓
-[7/7] PM — Closeout...                                       ✓
+[1/8] PM — Track 1 — Major detected. Writing spec...         ✓
+[2/8] Tech Lead — Planning implementation...                  ✓
+[3/8] Dev — Implementing...                                   ✓
+[4/8] QA — Verifying...                                       ✗ 2 issues found
+[3/8] Dev — Fixing issues (attempt 1/3)...                    ✓
+[4/8] QA — Re-verifying...                                    ✓
+[5/8] Tech Lead — Final review + project-doctor...            ✓
+[6/8] PM — Closeout (scope validated)...                      ✓
+[7/8] Ship — Committing and creating PR...                    ✓
+[8/8] DevOps — Deploying...                                   ✓
 ```
 
 ## Auto-heal routing
@@ -872,7 +902,8 @@ When a stage returns `issues-found`, route back as follows:
 | QA | Dev → QA |
 | Tech Lead (review) | Dev → QA → Tech Lead (review) |
 | project-doctor (inside Tech Lead review) | Dev → QA → Tech Lead (review, includes project-doctor) |
-| DevOps — `issue-type: code` | Dev → QA → Tech Lead (review) → DevOps |
+| Ship | **BLOCKED** — surface to user (commit/push failures require manual intervention) |
+| DevOps — `issue-type: code` | Dev → QA → Tech Lead (review) → PM closeout → Ship → DevOps |
 | DevOps — `issue-type: deploy` | DevOps retry |
 
 To determine DevOps issue type: read the `## Issues found` section of `handoff-devops.md` for the `issue-type:` line.
@@ -886,8 +917,9 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 [1] Tech Lead — triage, plan the fix
 [2] Dev — implement fix
 [3] QA — smoke test
-[4] DevOps — deploy
-[5] PM — document what happened (closeout only)
+[4] Ship — commit + push (if uncommitted changes exist)
+[5] DevOps — deploy
+[6] PM — document what happened (closeout only)
 ```
 
 **Track 1 — Major:**
@@ -897,8 +929,9 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 [3] Dev — executing-plans
 [4] QA — full verification
 [5] Tech Lead — final review + project-doctor
-[6] DevOps — deploy (if task requires deployment)
-[7] PM — closeout
+[6] PM — closeout (scope validation — gates Ship)
+[7] Ship — commit + push/PR (if uncommitted changes exist)
+[8] DevOps — deploy (if task requires deployment)
 ```
 
 **Track 2 — Standard:**
@@ -908,8 +941,9 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 [3] Dev — executing-plans
 [4] QA — verification
 [5] Tech Lead — final review
-[6] DevOps — deploy (if task requires deployment)
-[7] PM — closeout
+[6] PM — closeout (scope validation — gates Ship)
+[7] Ship — commit + push/PR (if uncommitted changes exist)
+[8] DevOps — deploy (if task requires deployment)
 ```
 
 **Track 3 — Non-Code:**
@@ -922,6 +956,53 @@ For Track 0: spawn Tech Lead first with the task and note it is a hotfix. PM run
 For Tracks 1 and 2: spawn PM first. Read `handoff-pm.md` to confirm track before proceeding.
 
 For Track 3: spawn PM with the task. PM will own it and write handoff-pm.md when done.
+
+## Ship stage
+
+The Ship stage commits verified work and makes it available for deployment or merge. It runs after Tech Lead review passes.
+
+**Skip condition:** Run `git status` first. If there are no uncommitted changes (working tree clean, nothing staged), skip this stage entirely — set status to `skipped` in the handoff doc and continue to the next stage.
+
+**When there are uncommitted changes:**
+
+1. Run `git status` to identify changed/new files.
+2. Stage relevant files (`git add` — prefer specific files over `git add -A`; never commit `.env`, credentials, or `.blueprint/workflow/` files).
+3. Derive a commit message from the PM spec (`handoff-pm.md` summary + acceptance criteria). The message should explain *why* the change was made, not just list files.
+4. Commit with the derived message.
+5. Determine push target:
+   - If on a feature branch: push to remote with `-u` flag.
+   - If on `main`/`master` and the project is solo (no CODEOWNERS, no PR checks configured): push directly.
+   - If on `main`/`master` and the project is team-based: create a feature branch first (`git checkout -b <branch-name>`), push, then create a PR using `gh pr create`.
+6. Write `.blueprint/workflow/handoff-ship.md`.
+
+**If commit or push fails:** Set status to `blocked` with the error details. The pipeline will surface this to the user (Ship failures are not auto-healable).
+
+**Handoff doc to write:** `.blueprint/workflow/handoff-ship.md`
+
+```markdown
+# Handoff: Ship
+
+## Status
+complete | skipped | blocked
+
+## Track
+Track N — Title
+
+## Summary
+[What was committed: commit message used, branch pushed to, PR created (if any). If skipped: "No uncommitted changes — nothing to ship."]
+
+## Outputs
+- Commit: [short SHA + message, or "n/a" if skipped]
+- Branch: [branch name]
+- PR: [URL if created, "n/a" if pushed directly, "n/a" if skipped]
+- Pushed to remote: yes | no | skipped
+
+## Issues found
+[If blocked: the exact error from git/gh. Empty otherwise.]
+
+## Notes for next stage
+[For DevOps: branch/PR details. For PM closeout: what was shipped.]
+```
 
 ## DevOps stage
 
@@ -990,14 +1071,15 @@ Re-run `/blueprint` anytime to refresh configuration, add roles, or update to a 
 
 When the user says the stack is unknown or cannot be detected, create only the structural files:
 
-- `CLAUDE.md` — full content with track instructions managed section
+- `CLAUDE.md` — append `@.blueprint/BLUEPRINT.md` include line (create file if needed)
+- `.blueprint/BLUEPRINT.md` — full track instructions content as defined in Step 7
 - `.claude/agents/pm.md`, `tech-lead.md`, `dev.md`, `qa.md`, `devops.md` — full content as defined in Step 7 (with YAML frontmatter managed sections and pipeline-aware bodies), no role customization prompt in pending mode
 - `.claude/skills/run/SKILL.md` — full /run skill as defined in Step 7
-- `.claude/workflow/.gitkeep` — creates the workflow directory
+- `.blueprint/workflow/.gitkeep` — creates the workflow directory
 - `docs/process/tracks.md` — full content as above
-- `.claude/project-overrides/project-profile.md` — all sections present but values set to `[TBD — re-run /blueprint once stack is chosen]`
-- `.claude/layers/pending/README.md` — content: `Stack not yet determined. Re-run /blueprint once the technology stack is chosen.`
-- `.claude/project-overrides/active-layer.txt` — content: `pending`
+- `.blueprint/project-overrides/project-profile.md` — all sections present but values set to `[TBD — re-run /blueprint once stack is chosen]`
+- `.blueprint/layers/pending/README.md` — content: `Stack not yet determined. Re-run /blueprint once the technology stack is chosen.`
+- `.blueprint/project-overrides/active-layer.txt` — content: `pending`
 
 Do NOT create: test-commands, verification strategy, deployment files, browser-playwright, stack-overrides.
 
