@@ -51,19 +51,25 @@ Check the project directory:
 
 Read `~/.claude/plugins/installed_plugins.json`.
 
+Also check for directly installed skills in these locations:
+- `~/.claude/skills/<skill-name>/SKILL.md` (user-scope direct install)
+- `.claude/skills/<skill-name>/SKILL.md` (project-scope direct install)
+
+A skill is considered installed if it appears in EITHER `installed_plugins.json` OR as a direct skill file in one of the above paths.
+
 ### superpowers
-- Key containing `superpowers` exists → already installed, skip
+- Key containing `superpowers` exists in installed_plugins.json, OR `~/.claude/skills/superpowers/SKILL.md` exists, OR `.claude/skills/superpowers/SKILL.md` exists → already installed, skip
 - Missing → ask: *"superpowers is not installed. It provides the brainstorming, TDD, debugging, and planning workflows used by this process. Install at user-scope (recommended — available in all your projects) or project-scope (this project only)?"*
   - User-scope: run `/plugin install superpowers`
   - Project-scope: note it for manual install guidance in the report
 
 ### frontend-design
-- Key containing `frontend-design` exists → skip
+- Key containing `frontend-design` exists in installed_plugins.json, OR `~/.claude/skills/frontend-design/SKILL.md` exists, OR `.claude/skills/frontend-design/SKILL.md` exists → skip
 - Missing AND project has a UI/frontend component → ask: *"frontend-design is not installed. It provides structured UI design workflows. Install at user-scope or project-scope?"*
   - Install at chosen scope
 
 ### simple
-- Key containing `simple` exists → skip
+- Key containing `simple` exists in installed_plugins.json, OR `~/.claude/skills/simple/SKILL.md` exists, OR `.claude/skills/simple/SKILL.md` exists → skip
 - Missing → ask: *"simple is not installed. It provides lightweight brainstorming for Track 2 — Standard tasks (quick intent discovery, trade-off proposals, and direction approval before specifying). Install at user-scope (recommended) or project-scope?"*
   - User-scope: run `/plugin install https://github.com/roin-orca/skills.git simple`
   - Project-scope: note it for manual install guidance in the report
