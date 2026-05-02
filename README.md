@@ -83,13 +83,13 @@ blueprint sets up a complete AI-assisted development workflow for any project �
 
 3. **Sets up a four-track process** — every task gets classified before Claude acts on it:
    - **Track 0** (hotfix) — production incident, speed over process, no spec phase
-   - **Track 1** (major) — brainstorming, PRD, spec, mandatory `/project-doctor` deep review before merge
-   - **Track 2** (normal feature or fix) — standard QA, no deep review required
+   - **Track 1** (major) — brainstorming, PRD, spec, full `/project-doctor` codebase audit before merge
+   - **Track 2** (normal feature or fix) — lightweight brainstorm via `simple` skill (always interactive), scoped `/project-doctor` on changed files only, Tech Lead can escalate to Track 1 if scope grows
    - **Track 3** (no code changes) — documentation, planning, research
 
-4. **Generates a project layer** — writes stack-specific config files for test commands, verification strategy (including Playwright MCP for browser projects), and deployment steps.
+4. **Generates a project layer** — writes stack-specific config files for test commands, verification strategy (including mandatory Playwright MCP for UI changes), and deployment steps.
 
-5. **Installs project-doctor** — wires the Track 1 review gate automatically.
+5. **Installs project-doctor** — wires the Track 1 and Track 2 review gates automatically.
 
 **Re-run anytime** with `/blueprint` after a stack change, to refresh stale config, or to add/update roles. Re-runs are safe: managed sections are regenerated, any content you've added manually is never touched.
 

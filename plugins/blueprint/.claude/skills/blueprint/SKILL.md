@@ -10,9 +10,9 @@ description: "Set up a structured AI-assisted development workflow for your proj
 **blueprint** sets up a structured AI-assisted development workflow for your project. It installs:
 
 - **Agent roles** — PM, Tech Lead, Dev, QA, DevOps (real Claude Code subagents)
-- **Four-track process** — Track 0 — Hotfix (emergency fix), Track 1 — Major (brainstorm + spec + architectural review), Track 2 — Standard (normal feature or fix), Track 3 — Non-Code (docs, planning, research)
+- **Four-track process** — Track 0 — Hotfix (emergency fix), Track 1 — Major (brainstorm + spec + full review), Track 2 — Standard (lightweight brainstorm via `simple`, scoped review on changed files), Track 3 — Non-Code (docs, planning, research)
 - **`/run` skill** — executes any task autonomously through the full agent pipeline
-- **project-doctor** — mandatory deep review gate for Track 1 — Major and Track 2 — Standard work
+- **project-doctor** — full codebase audit for Track 1, scoped to changed files for Track 2
 - **Tech stack configuration** — layer, test commands, verification strategy, and deploy setup tailored to your actual project
 
 Use `/run <task>` to execute a task autonomously. Use `/run --auto <task>` to also auto-accept review gates.
@@ -61,6 +61,12 @@ Read `~/.claude/plugins/installed_plugins.json`.
 - Key containing `frontend-design` exists → skip
 - Missing AND project has a UI/frontend component → ask: *"frontend-design is not installed. It provides structured UI design workflows. Install at user-scope or project-scope?"*
   - Install at chosen scope
+
+### simple
+- Key containing `simple` exists → skip
+- Missing → ask: *"simple is not installed. It provides lightweight brainstorming for Track 2 — Standard tasks (quick intent discovery, trade-off proposals, and direction approval before specifying). Install at user-scope (recommended) or project-scope?"*
+  - User-scope: run `/plugin install https://github.com/roin-orca/skills.git simple`
+  - Project-scope: note it for manual install guidance in the report
 
 ### Playwright MCP
 - Only ask if project is browser-based (has pages/, a frontend, or renders HTML)
@@ -210,8 +216,8 @@ Pipeline: Tech Lead triage → Dev fix → QA smoke test → Ship (if uncommitte
 **Track 1 — Major** — Significant change requiring brainstorming, PRD, spec, and architectural review. Mandatory `/project-doctor` review before merge.
 Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
 
-**Track 2 — Standard** — Normal feature or fix.
-Pipeline: PM (spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
+**Track 2 — Standard** — Normal feature or fix. Lightweight brainstorming via `simple` skill (always interactive). Scoped review on changed files only.
+Pipeline: PM (simple brainstorm + spec) → Tech Lead (plan if needed) → Dev (implement) → QA → Tech Lead review (scoped project-doctor) → PM closeout → Ship (if uncommitted) → DevOps (if needed).
 
 **Track 3 — Non-Code** — Documentation, planning, research. No code changes.
 Pipeline: PM owns or delegates entirely.
@@ -242,8 +248,18 @@ You are the PM agent in the autonomous development pipeline.
    - **Track 1 — Major**: significant change needing brainstorming, PRD, spec, and architectural review
    - **Track 2 — Standard**: normal feature or fix
    - **Track 3 — Non-Code**: documentation, planning, research — no code changes
+
+   **Classification heuristics:**
+   | Signal | Track 1 | Track 2 |
+   |--------|---------|---------|
+   | New subsystem or module | yes | — |
+   | Touches > 5 existing files | likely | — |
+   | Crosses architectural boundaries | yes | — |
+   | Single concern, clear scope | — | yes |
+   | User said "quick", "small", or "simple" | — | yes |
+   | Ambiguous scope | default to Track 1 | — |
 4. For **Track 1 — Major**: invoke `superpowers:brainstorming`. If the task involves UI/UX work (new pages, components, visual changes, user flows), also invoke `frontend-design` to inform the spec with design decisions. IMPORTANT: stop when the spec is written — do NOT invoke `writing-plans` or `executing-plans`. In **autonomous mode**: auto-accept all review and approval gates in brainstorming; still ask clarifying questions. Write `.blueprint/workflow/handoff-pm.md` and exit. The pipeline handles planning and implementation.
-5. For **Track 2 — Standard**: write a concise spec and acceptance criteria directly (no brainstorming skill needed). If the task involves UI/UX work, invoke `frontend-design` to inform the spec with design decisions before writing acceptance criteria. Write `.blueprint/workflow/handoff-pm.md`.
+5. For **Track 2 — Standard**: invoke `simple` for lightweight brainstorming (intent discovery, trade-offs, direction approval). **The `simple` brainstorm is always interactive — never auto-accept direction choices, even in autonomous mode.** Then write spec and acceptance criteria based on the approved direction. If the task involves UI/UX work, invoke `frontend-design` to inform the spec with design decisions before writing acceptance criteria. Also note in the handoff doc whether the change is small-scope (single concern, few files) — this determines whether Tech Lead plans or Dev implements directly. Write `.blueprint/workflow/handoff-pm.md`.
 6. For **Track 3 — Non-Code**: own the task entirely or delegate as appropriate. Write `.blueprint/workflow/handoff-pm.md` with status `complete` when done.
 
 **When invoked as the closeout stage** (final stage of pipeline — including Track 0 — Hotfix, where you run last):
@@ -283,6 +299,7 @@ Track N — Title
 
 ## Outputs
 - Track: Track N — Title
+- Small-scope: true | false (Track 2 only — true if single concern, few files, clear direction)
 - Acceptance criteria: [listed inline]
 - Spec location: [if written to a file, link it]
 
@@ -310,19 +327,24 @@ You are the Tech Lead agent in the autonomous development pipeline.
 
 1. Read `.blueprint/workflow/handoff-pm.md` for the spec and acceptance criteria.
 2. Check `.blueprint/workflow/run-mode.md` for mode.
-3. Invoke `superpowers:writing-plans` using the spec as input.
-4. In **autonomous mode**: auto-accept plan review gates.
-5. When `writing-plans` finishes, do NOT surface the execution choice question ("subagent-driven or inline?") to the user — the `/run` pipeline controls Dev invocation. Write `.blueprint/workflow/handoff-tech-lead.md` and exit.
+3. **For Track 1 — Major**: invoke `superpowers:writing-plans` using the spec as input.
+4. **For Track 2 — Standard**: check `handoff-pm.md` for the `small-scope` flag.
+   - If `small-scope: true` — skip formal planning. Write a brief implementation note (what to change, where) directly in the handoff doc. No `writing-plans` invocation.
+   - If `small-scope: false` or not set — invoke `superpowers:writing-plans` as normal.
+5. In **autonomous mode**: auto-accept plan review gates.
+6. When planning finishes, do NOT surface the execution choice question ("subagent-driven or inline?") to the user — the `/run` pipeline controls Dev invocation. Write `.blueprint/workflow/handoff-tech-lead.md` and exit.
 
 **Your role in the review stage (invoked after QA):**
 
 1. Read `.blueprint/workflow/handoff-qa.md` for verification results.
 2. Read `.blueprint/workflow/handoff-pm.md` for acceptance criteria.
 3. Check `.blueprint/workflow/run-mode.md` for mode.
-4. For **Track 1 — Major** or **Track 2 — Standard**: invoke `/project-doctor` before assessing PR readiness.
-5. Assess whether the implementation meets acceptance criteria and is ready to merge.
-6. In **autonomous mode**: auto-accept review gates.
-7. Write `.blueprint/workflow/handoff-review.md`.
+4. **For Track 1 — Major**: invoke `/project-doctor` (full codebase audit) before assessing PR readiness.
+5. **For Track 2 — Standard**: invoke `/project-doctor` scoped to changed files only. Pass the list of changed files from `handoff-dev.md` — review only those files, not the full codebase.
+6. **Escalation check**: If the implementation grew beyond Track 2 scope (new subsystem introduced, architectural boundaries crossed, > 5 files changed that weren't anticipated in the spec), set status to `escalate-to-track-1` in the handoff doc. The pipeline will restart as Track 1.
+7. Assess whether the implementation meets acceptance criteria and is ready to merge.
+8. In **autonomous mode**: auto-accept review gates.
+9. Write `.blueprint/workflow/handoff-review.md`.
 
 **Handoff doc to write** (planning stage): `.blueprint/workflow/handoff-tech-lead.md`
 
@@ -352,17 +374,18 @@ Track N — Title
 # Handoff: Tech Lead (Review)
 
 ## Status
-complete | issues-found | blocked
+complete | issues-found | escalate-to-track-1 | blocked
 
 ## Track
 Track N — Title
 
 ## Summary
-[Review outcome, project-doctor result if Track 1 or Track 2]
+[Review outcome, project-doctor result if Track 1 or Track 2. If escalating: explain why scope exceeds Track 2.]
 
 ## Outputs
 - PR readiness: ready | not ready
 - Issues found: [listed inline, empty if none]
+- project-doctor scope: full (Track 1) | changed-files-only (Track 2)
 
 ## Notes for next stage
 [Deployment notes for DevOps, or closeout notes for PM]
@@ -386,9 +409,10 @@ You are the Dev agent in the autonomous development pipeline.
 
 **Your role when invoked by `/run`:**
 
-1. Check if this is a **fix loop**: if `.blueprint/workflow/handoff-qa.md` exists and has status `issues-found`, read it for the list of issues to fix. Otherwise read `.blueprint/workflow/handoff-tech-lead.md` for the implementation plan.
+1. Check if this is a **fix loop**: if `.blueprint/workflow/handoff-qa.md` exists and has status `issues-found`, read it for the list of issues to fix. Otherwise read `.blueprint/workflow/handoff-tech-lead.md` for the implementation plan (or implementation note, if Tech Lead skipped formal planning for small-scope Track 2).
 2. Check `.blueprint/workflow/run-mode.md` for mode.
-3. Invoke `superpowers:executing-plans` with the plan (or fix list). **Automatically select subagent-driven execution — do not ask the user to choose.**
+3. If a formal plan exists: invoke `superpowers:executing-plans` with the plan. **Automatically select subagent-driven execution — do not ask the user to choose.**
+   If only an implementation note exists (small-scope Track 2): implement directly from the note — no `executing-plans` invocation needed.
 4. In **autonomous mode**: auto-accept execution checkpoints and review gates within executing-plans.
 5. Write `.blueprint/workflow/handoff-dev.md`.
 
@@ -437,14 +461,17 @@ You are the QA agent in the autonomous development pipeline.
 2. Read `.blueprint/workflow/handoff-pm.md` for the acceptance criteria.
 3. Read the project verification profile in `.blueprint/project-artifacts/verification/` — follow the strategy and required evidence documented there.
 4. Run all automated tests (commands from `.blueprint/project-artifacts/testing/test-commands.md`).
-5. **For browser-based projects (MANDATORY if Playwright MCP is available):**
+5. **Determine if this is a UI change.** A change is a UI change if it touches templates, components, pages, stylesheets, or anything that affects what the user sees in a browser. If uncertain, treat it as a UI change.
+6. **For UI changes — MANDATORY Playwright MCP verification:**
    - Start the dev server (or use the build preview).
-   - Use `mcp__playwright__browser_navigate` to open the relevant pages.
-   - Use `mcp__playwright__browser_snapshot` to inspect the DOM and confirm UI changes are visible (or hidden, as required).
+   - Use `mcp__playwright__browser_navigate` to open every affected page.
+   - Use `mcp__playwright__browser_snapshot` to inspect the DOM and confirm UI changes render correctly.
+   - Use `mcp__playwright__browser_take_screenshot` to capture visual evidence.
    - Use `mcp__playwright__browser_console_messages` with level `error` to confirm zero console errors.
-   - Check at least every affected view mentioned in the acceptance criteria.
-   - This is NOT optional. Tests passing alone is insufficient for UI changes — the app must be visually confirmed running in a browser.
-6. Write `.blueprint/workflow/handoff-qa.md`.
+   - Check every view mentioned in the acceptance criteria.
+   - **This is NOT optional.** Tests passing alone is insufficient for UI changes. You MUST use Playwright MCP to visually confirm the app works in a browser.
+7. **For non-UI changes** (backend, API, config, tooling): run tests and verify acceptance criteria programmatically. No browser verification required.
+8. Write `.blueprint/workflow/handoff-qa.md`.
 
 **Critical:** If issues are found, list each one precisely and specifically in the handoff doc so dev knows exactly what to fix. Vague issue descriptions cause fix loops to fail.
 
@@ -676,8 +703,10 @@ List required CI and review gates.
 # Review Strategy
 
 <!-- scaffold:begin managed review-gate -->
-Track 1 and Track 2 require mandatory deep review before merge.
-Run: `/project-doctor`
+Track 1 requires full `/project-doctor` codebase audit before merge.
+Track 2 requires `/project-doctor` scoped to changed files only before merge.
+
+Tech Lead may escalate Track 2 → Track 1 if implementation exceeds original scope.
 <!-- scaffold:end managed review-gate -->
 ```
 
@@ -771,7 +800,13 @@ PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) 
 **When:** Normal feature or bug fix.
 
 **Pipeline:**
-PM (spec + acceptance criteria) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (verification) → Tech Lead (final review + project-doctor) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
+PM (lightweight brainstorm via `simple` — always interactive + spec + acceptance criteria) → Tech Lead (writing-plans if not small-scope, skip if small-scope) → Dev (executing-plans or direct implementation) → QA (tests + Playwright for UI changes) → Tech Lead (final review + scoped project-doctor on changed files only) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
+
+**Notes:**
+- `simple` brainstorm is always interactive, even in `--auto` mode.
+- Tech Lead skips formal planning for small-scope changes (single concern, few files).
+- project-doctor runs only on changed files, not the full codebase.
+- If Tech Lead finds the change grew beyond Track 2 scope, it escalates to Track 1.
 
 ---
 
@@ -823,7 +858,7 @@ Execute a development task through the full autonomous agent pipeline.
 
 **Usage:**
 - `/run <task description>` — Interactive: questions asked, review gates required
-- `/run --auto <task description>` — Autonomous: questions still asked, review/approval gates auto-accepted
+- `/run --auto <task description>` — Autonomous: review/approval gates auto-accepted. Brainstorming direction choices (`simple` and `superpowers:brainstorming`) always remain interactive — the user always picks the direction.
 
 ## What this does
 
@@ -857,6 +892,7 @@ Work through each stage in order for the detected track (see pipelines below). A
 | `needs-input` | Print `? NEEDS INPUT: <question from handoff>`, stop and surface to user |
 | `skipped` | (Ship stage only) Print `✓ skipped — no uncommitted changes`, continue to next stage |
 | `scope-expanded` | (PM closeout only) Print `⚠ SCOPE EXPANDED: <summary>`. In autonomous mode: informational, continue. In interactive mode: surface to user for confirmation before completing. |
+| `escalate-to-track-1` | (Tech Lead review only) Print `⚡ ESCALATING TO TRACK 1: <reason>`. Restart pipeline as Track 1 from the beginning. |
 
 **Loop limit:** If the fix counter for any stage reaches 3, stop and print:
 
@@ -901,6 +937,7 @@ When a stage returns `issues-found`, route back as follows:
 |---|---|
 | QA | Dev → QA |
 | Tech Lead (review) | Dev → QA → Tech Lead (review) |
+| Tech Lead (review) — `escalate-to-track-1` | Restart pipeline as Track 1 from the beginning (PM brainstorm + spec) |
 | project-doctor (inside Tech Lead review) | Dev → QA → Tech Lead (review, includes project-doctor) |
 | Ship | **BLOCKED** — surface to user (commit/push failures require manual intervention) |
 | DevOps — `issue-type: code` | Dev → QA → Tech Lead (review) → PM closeout → Ship → DevOps |
@@ -936,15 +973,17 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 
 **Track 2 — Standard:**
 ```
-[1] PM — spec + acceptance criteria
-[2] Tech Lead — write-plans
-[3] Dev — executing-plans
-[4] QA — verification
-[5] Tech Lead — final review + project-doctor
+[1] PM — lightweight brainstorm (simple, always interactive) + spec + acceptance criteria
+[2] Tech Lead — write-plans (skip if small-scope — PM hands off directly to Dev)
+[3] Dev — executing-plans (or direct implementation if no formal plan)
+[4] QA — tests + mandatory Playwright for UI changes
+[5] Tech Lead — final review + scoped project-doctor (changed files only)
 [6] PM — closeout (scope validation — gates Ship)
 [7] Ship — commit + push/PR (if uncommitted changes exist)
 [8] DevOps — deploy (if task requires deployment)
 ```
+
+Note: If Tech Lead review returns `escalate-to-track-1`, the pipeline restarts as Track 1 from the beginning.
 
 **Track 3 — Non-Code:**
 ```
