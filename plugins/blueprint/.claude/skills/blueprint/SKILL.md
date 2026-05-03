@@ -974,7 +974,7 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 [5] Tech Lead — final review + project-doctor
 [6] PM — closeout (scope validation — gates Ship)
 [7] Ship — commit + push/PR (if uncommitted changes exist)
-[8] DevOps — deploy (if task requires deployment)
+[8] DevOps — deploy (see DevOps stage decision logic)
 ```
 
 **Track 2 — Standard:**
@@ -986,7 +986,7 @@ PM classifies the track in its first stage. Read `handoff-pm.md` after the PM st
 [5] Tech Lead — final review + scoped project-doctor (changed files only)
 [6] PM — closeout (scope validation — gates Ship)
 [7] Ship — commit + push/PR (if uncommitted changes exist)
-[8] DevOps — deploy (if task requires deployment)
+[8] DevOps — deploy (see DevOps stage decision logic)
 ```
 
 Note: If Tech Lead review returns `escalate-to-track-1`, the pipeline restarts as Track 1 from the beginning.
@@ -1067,10 +1067,16 @@ Track N — Title
 
 ## DevOps stage
 
-Only run the DevOps stage if the task actually requires deployment. Signs a deployment is needed:
+Run the DevOps stage if ANY of the following are true:
+- The Ship stage pushed code to main/master (status `complete`, branch is main/master — code is now in production branch and should be deployed)
 - The task description mentions deploy, release, or shipping
 - The plan (handoff-tech-lead.md) includes deploy steps
 - Tech Lead review (handoff-review.md) notes deployment is required
+
+**Skip** the DevOps stage only if:
+- Ship was skipped (no changes to deploy)
+- Ship pushed to a feature branch / created a PR (deployment happens after merge)
+- Track 3 — Non-Code (no code to deploy)
 
 If deployment is not required, skip DevOps and go directly to PM closeout.
 ```
