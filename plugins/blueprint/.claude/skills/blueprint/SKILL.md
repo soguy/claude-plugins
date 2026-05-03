@@ -1002,6 +1002,22 @@ For Tracks 1 and 2: spawn PM first. Read `handoff-pm.md` to confirm track before
 
 For Track 3: spawn PM with the task. PM will own it and write handoff-pm.md when done.
 
+## QA stage
+
+The QA stage independently verifies the implementation meets acceptance criteria.
+
+1. Run all automated tests (commands from `.blueprint/project-artifacts/testing/test-commands.md`).
+2. Run the build to verify no compile/type errors.
+3. **Determine if this is a UI change.** A change is a UI change if it modifies any file in a frontend/UI directory (components, views, pages, styles). If uncertain, treat it as a UI change.
+4. **For UI changes — MANDATORY browser verification:**
+   - Start the dev server (or use the build preview).
+   - Use Playwright MCP (`mcp__playwright__browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_console_messages`) to visually confirm the change works in a real browser.
+   - Navigate affected pages, verify the golden path and edge cases.
+   - Confirm zero console errors.
+   - **Tests passing alone is NOT sufficient for UI changes. You MUST verify in a browser before marking QA complete.**
+5. For non-UI changes: run tests and verify acceptance criteria programmatically.
+6. Write `.blueprint/workflow/handoff-qa.md`.
+
 ## Ship stage
 
 The Ship stage commits verified work and makes it available for deployment or merge. It runs after Tech Lead review passes.
