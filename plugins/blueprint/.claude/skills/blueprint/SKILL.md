@@ -220,10 +220,10 @@ Always classify work into a track before acting. Reference tracks by number and 
 Pipeline: Tech Lead triage → Dev fix → QA smoke test → Ship (if uncommitted) → DevOps deploy → PM documents after.
 
 **Track 1 — Major** — Significant change requiring brainstorming, PRD, spec, and architectural review. Mandatory `/project-doctor` review before merge.
-Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if needed).
+Pipeline: PM (brainstorm + spec) → Tech Lead (plan) → Dev (implement) → QA → Tech Lead review (incl. project-doctor) → PM closeout (scope validation) → Ship (if uncommitted) → DevOps (if shipped to main).
 
 **Track 2 — Standard** — Normal feature or fix. Lightweight brainstorming via `simple` skill (always interactive). Scoped review on changed files only.
-Pipeline: PM (simple brainstorm + spec) → Tech Lead (plan if needed) → Dev (implement) → QA → Tech Lead review (scoped project-doctor) → PM closeout → Ship (if uncommitted) → DevOps (if needed).
+Pipeline: PM (simple brainstorm + spec) → Tech Lead (plan if needed) → Dev (implement) → QA → Tech Lead review (scoped project-doctor) → PM closeout → Ship (if uncommitted) → DevOps (if shipped to main).
 
 **Track 3 — Non-Code** — Documentation, planning, research. No code changes.
 Pipeline: PM owns or delegates entirely.
@@ -795,7 +795,7 @@ Tech Lead (triage + fix plan) → Dev (implement fix) → QA (smoke test) → Sh
 **When:** Significant change requiring product brainstorming, PRD, spec, and architectural review.
 
 **Pipeline:**
-PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (full verification) → Tech Lead (final review + mandatory project-doctor) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
+PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) → Dev (executing-plans) → QA (full verification) → Tech Lead (final review + mandatory project-doctor) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if shipped to main)
 
 **Notes:** `/project-doctor` is mandatory before Tech Lead gives final approval.
 
@@ -806,7 +806,7 @@ PM (brainstorm + spec, stop before writing-plans) → Tech Lead (writing-plans) 
 **When:** Normal feature or bug fix.
 
 **Pipeline:**
-PM (lightweight brainstorm via `simple` — always interactive + spec + acceptance criteria) → Tech Lead (writing-plans if not small-scope, skip if small-scope) → Dev (executing-plans or direct implementation) → QA (tests + Playwright for UI changes) → Tech Lead (final review + scoped project-doctor on changed files only) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if deployment required)
+PM (lightweight brainstorm via `simple` — always interactive + spec + acceptance criteria) → Tech Lead (writing-plans if not small-scope, skip if small-scope) → Dev (executing-plans or direct implementation) → QA (tests + Playwright for UI changes) → Tech Lead (final review + scoped project-doctor on changed files only) → PM (closeout — scope validation, gates Ship) → Ship (if uncommitted) → DevOps (if shipped to main)
 
 **Notes:**
 - `simple` brainstorm is always interactive, even in `--auto` mode.
