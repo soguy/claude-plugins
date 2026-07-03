@@ -5,198 +5,248 @@ description: "Diagnoses and heals software projects end-to-end: dead code remova
 
 # Project Doctor Skill
 
-A structured pipeline for analyzing a project, removing dead code, fixing bugs, auditing security, running sanity checks, and keeping documentation in sync with reality.
+A structured pipeline for reviewing a change (or auditing a whole project): finding bugs, catching security issues, cleaning up dead code, verifying tests still pass, and keeping documentation in sync with reality.
+
+**Scope-aware and effort-tiered.** The default run reviews the *current diff*, not the whole codebase — bugs added by this branch matter more than pre-existing lint. Full-codebase mode is opt-in.
+
+## Invocation modes
+
+Detect from the user's request:
+
+| Signal | Mode | Behavior |
+|---|---|---|
+| `--quick` or "quick check" or "before commit" | **quick** | Phases 0, 0.5, 2, 4, 6. Simplify + diff-scoped bug detection + sanity checks + report. ~30-60s. |
+| No flag, active diff exists | **diff review** *(default)* | All phases, scoped to touched files. Codex cross-check runs. ~2-4 min. |
+| `--deep` or "audit" or "codebase health" or empty diff | **audit** | All phases, whole codebase. Adversarial Codex review. Loop-until-dry for finder phases. ~5-15 min. |
+
+Announce the mode at the top of your first response so the user can override: *"Running in **diff review** mode — 5 files touched. Say `--deep` if you want a full-codebase audit."*
 
 ---
 
 ## Phase 0 — Orient
 
-Before doing anything else, understand the project:
-
-1. **Read `view /path/to/project`** to see the directory tree.
-2. Look for `README.md`, `CHANGELOG.md`, `package.json` / `pyproject.toml` / `Cargo.toml` / equivalent to understand the project's purpose, stack, and entry points.
+1. Read `view /path/to/project` to see the directory tree.
+2. Look for `README.md`, `CHANGELOG.md`, `package.json` / `pyproject.toml` / `Cargo.toml` / equivalent to understand purpose, stack, and entry points.
 3. Identify the primary language(s), framework(s), and test runner.
-4. Note any CI config (`.github/workflows`, `Makefile`, `Justfile`) — these reveal the canonical build/test/lint commands.
+4. Note CI config (`.github/workflows`, `Makefile`, `Justfile`) — the canonical build/test/lint commands.
+5. **Read the project's convention docs.** Look for `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `CONTRIBUTING.md`, `.github/copilot-instructions.md` — anywhere the project encodes its own review rules. Extract project-specific patterns (naming conventions, "always call X after Y" rules, "these N docs must update together", API/DB idioms). Feed these into Phase 2 and Phase 5.
 
-Summarize your findings to the user in 3–5 bullet points, then proceed immediately to Phase 0.5.
+Summarize your findings to the user in 3-5 bullet points, including any project-specific rules you'll be applying. Then proceed immediately to Phase 0.25.
+
+---
+
+## Phase 0.25 — Scope detection
+
+Run once, upfront:
+
+```bash
+git diff @{upstream}...HEAD --stat 2>/dev/null || git diff main...HEAD --stat 2>/dev/null || git diff HEAD~1 --stat 2>/dev/null
+git diff HEAD --stat  # working tree
+git ls-files --others --exclude-standard  # untracked files
+```
+
+**Decision:**
+
+- **Diff has content** (committed or working tree): `SCOPE=diff`. Store the touched file list; downstream phases only analyze/report on issues *inside these files* or *directly caused by them*. Findings outside the diff are suppressed unless they explain a diff-caused failure.
+- **Both diffs empty AND `--deep` or audit mode requested**: `SCOPE=audit`. All phases analyze the whole codebase.
+- **Both diffs empty AND no explicit audit request**: ask the user *"No active diff. Did you want a full-codebase audit, or is there a specific area you want reviewed?"* — don't guess.
+
+Print one line: *"Scope: {diff review, N files: ...} | {audit, whole codebase}"* and continue.
 
 ---
 
 ## Phase 0.5 — Simplify
 
-Before deeper analysis, run the `simplify` skill on any recently changed code. This catches reuse, quality, and efficiency issues introduced by recent work before they get baked in further.
+Run the `simplify` skill on the changed code. Catches reuse, quality, and efficiency issues before they get baked in. This is the leanest, fastest phase — never skip it.
 
 Invoke: use the `Skill` tool with `skill: "simplify"`.
 
-When simplify completes, **do not pause or wait for user input** — proceed immediately to Phase 1.
+When simplify completes, **do not pause or wait for user input** — proceed immediately to Phase 2.
 
----
-
-## Phase 1 — Dead Code Removal
-
-Goal: delete code that is never reached, never imported, or never called.
-
-### 1a. Automated detection
-Run language-appropriate static analysis tools if available:
-
-| Language | Tool | Install check |
-|---|---|---|
-| JavaScript / TypeScript | `npx ts-prune` or `npx unimported` | `which npx` |
-| Python | `vulture` | `pip show vulture` |
-| Rust | `cargo udeps` | `cargo udeps --help` |
-| Go | built-in: `go build ./...` with `-gcflags="-e"` | — |
-| Generic | `grep`-based import tracing | always available |
-
-If a tool isn't installed, note it but don't block — proceed manually.
-
-### 1b. Manual patterns to check
-- Exported symbols never imported outside their own file
-- Commented-out blocks > 5 lines old (check git blame if `.git` exists)
-- Feature flags / env vars that no longer exist in any config or CI
-- Test helpers imported only in files that no longer exist
-- Duplicate utility functions (same logic, different names)
-
-### 1c. Removal rules
-- **Never remove** code marked `// TODO: re-enable` or `# noqa: dead` unless the user explicitly says so.
-- **Always** remove the import/require statement when you remove the last usage of a symbol.
-- After removing, re-run the build/test command (see Phase 3) to confirm nothing broke.
+**Skip in audit mode** — simplify is diff-scoped by design.
 
 ---
 
 ## Phase 2 — Bug Detection & Fixes
 
-### High-priority patterns to look for
+Run before dead-code removal (Phase 3) — bugs are urgent, dead code isn't.
+
+### 2a. Generic patterns
+
+For each file in scope, scan for:
+
 1. **Off-by-one errors** — loop bounds, slice indices, pagination offsets
-2. **Null / undefined dereference** — accessing properties without guards
-3. **Async errors not caught** — `await` inside `try` without `catch`, unhandled Promise rejections
-4. **Resource leaks** — file handles, DB connections, event listeners never cleaned up
-5. **Race conditions** — shared mutable state modified in concurrent paths
-6. **Incorrect error propagation** — swallowed errors (`catch (e) {}`), wrong HTTP status codes returned
-7. **Type coercion surprises** — `==` vs `===`, implicit string/number conversion
-8. **Hardcoded secrets or localhost URLs** — flag these; don't auto-fix, just report
-9. **Missing input validation** — user-supplied data passed directly to DB queries, shell commands, or file paths
+2. **Null / undefined dereference** — property access without guards
+3. **Async errors not caught** — `await` inside `try` without `catch`, unhandled Promise rejections, `finally` missing state resets
+4. **Resource leaks** — file handles, DB connections, event listeners never cleaned up (esp. React `useEffect` without cleanup)
+5. **Race conditions** — shared mutable state modified in concurrent paths; boolean flags that should be counters
+6. **Incorrect error propagation** — swallowed errors (`catch (e) {}`), wrong HTTP status codes, silent state resets after failed writes
+7. **Type coercion surprises** — `==` vs `===`, implicit string/number conversion, `null` vs `undefined` truthiness
+8. **Hardcoded secrets or localhost URLs** — flag, don't auto-fix
+9. **Missing input validation** — user-supplied data reaching DB queries, shell commands, or file paths
 10. **Logic inversion** — `if (!error) { throw }` style mistakes
 
-### Fix approach
-- Fix bugs that are unambiguous (clear wrong behavior, clear correct behavior).
-- For ambiguous cases, add a `// FIXME(review): <description>` comment and include it in the summary report.
-- Do not refactor working code just because you disagree with the style — that's a separate task.
+### 2b. Project-specific patterns
+
+Apply the convention rules you extracted from `CLAUDE.md` / `AGENTS.md` / `.cursorrules` in Phase 0. These are usually where the real bugs live — projects encode rules for the mistakes that hurt them.
+
+Examples of the *shape* to look for:
+
+- "*Always call X after Y*" rules (e.g. "invalidate cache after junction table writes") → grep for Y, verify each hit calls X.
+- Data-access idioms (e.g. "use RealDictCursor, so `row[0]` raises") → grep for anti-patterns.
+- Cross-doc sync rules ("these four files must update together") → check whether the current diff violates the invariant.
+- Chokepoint patterns ("all writes flow through `crud.ENTITY_DEFS.updatable`") → verify new code respects the chokepoint.
+
+If the project has no such doc, note that and stick to 2a.
+
+### 2c. Fix approach
+
+- Fix unambiguous bugs (clear wrong → clear right).
+- For ambiguous cases, add a `// FIXME(review): <description>` comment and list them in the summary.
+- Do not refactor working code just because you disagree with the style — that's `/simplify`, not this phase.
 
 ---
 
 ## Phase 3 — Security Audit
 
-Goal: identify vulnerabilities, insecure patterns, and security misconfigurations. Focus on issues from the OWASP Top 10 and common language-specific pitfalls.
+**Filter checks by what the diff actually touches.** In diff mode, do not run every security pattern below — grep the changed files first, run only the categories that match.
 
-### 3a. Secrets & credentials
-- **Hardcoded secrets** — API keys, passwords, tokens, connection strings in source code (not just `.env`)
-- **Secrets in version control** — check `.gitignore` covers `.env`, `*.pem`, `*.key`, credential files. Run `git log --all -p -- '*.env' '*.key' '*.pem'` to check if secrets were ever committed.
-- **Overly broad `.env` exposure** — environment variables containing secrets loaded into frontend bundles or logged to stdout
-- **Default credentials** — admin/admin, test tokens, placeholder API keys shipped in config
+### 3a. Diff → category mapping
 
-### 3b. Injection vulnerabilities
-- **SQL injection** — raw string concatenation in queries instead of parameterized/prepared statements. Check ORM raw queries and any `execute()` calls with f-strings or `%` formatting.
-- **Command injection** — user input passed to `os.system()`, `subprocess.run(shell=True)`, `child_process.exec()`, or backtick execution without sanitization
-- **Path traversal** — user-supplied filenames used with `open()`, `fs.readFile()`, or `os.path.join()` without validating they stay within expected directories
-- **Template injection** — user input rendered in server-side templates without escaping (Jinja2 `|safe`, `dangerouslySetInnerHTML`, `v-html`)
-- **XSS (Cross-Site Scripting)** — user-supplied data rendered in HTML/JSX without proper escaping. Check `dangerouslySetInnerHTML`, `innerHTML`, `document.write()`, and URL parameters reflected in pages.
-- **Log injection** — user input written to log files without sanitization (enables log forging, CRLF injection)
-
-### 3c. Authentication & authorization
-- **Missing auth on endpoints** — API routes that should require authentication but don't enforce it
-- **Broken access control** — endpoints that check auth but not authorization (e.g., any logged-in user can access admin routes)
-- **Insecure session handling** — session tokens in URLs, missing `HttpOnly`/`Secure`/`SameSite` cookie flags, no session expiry
-- **Weak password handling** — plaintext storage, weak hashing (MD5, SHA1), missing salt, no rate limiting on login
-- **JWT issues** — `alg: none` accepted, secrets in code, no expiry, overly broad claims
-
-### 3d. Data exposure & privacy
-- **Sensitive data in API responses** — passwords, tokens, internal IDs, PII leaked in API output that the frontend doesn't need
-- **Verbose error messages** — stack traces, SQL errors, or internal paths exposed to users in production
-- **Missing CORS restrictions** — wildcard `*` origin in production, or overly permissive origins
-- **Unencrypted sensitive data** — PII or credentials stored without encryption at rest
-
-### 3e. Dependency & configuration security
-- **Known vulnerable dependencies** — run `npm audit` / `pip audit` / `cargo audit` / `snyk test` if available. Flag critical/high severity findings.
-- **Outdated dependencies** — major versions behind with known CVEs
-- **Debug mode in production** — `DEBUG=true`, `FLASK_ENV=development`, verbose logging enabled by default
-- **Missing security headers** — no CSP, HSTS, X-Frame-Options, X-Content-Type-Options in HTTP responses
-- **Insecure TLS** — HTTP URLs for APIs or webhooks, self-signed cert acceptance, disabled cert verification (`verify=False`)
-
-### 3f. Language-specific checks
-
-| Language | What to check |
+| Diff touches | Run |
 |---|---|
-| Python | `eval()`, `exec()`, `pickle.loads()` on untrusted data, `yaml.load()` without `Loader=SafeLoader`, `subprocess` with `shell=True`, `__import__()` with user input |
-| JavaScript / TypeScript | `eval()`, `Function()` constructor, `innerHTML`, prototype pollution via `Object.assign`/spread on user input, `require()` with dynamic paths, RegExp DoS |
-| Go | `fmt.Sprintf` in SQL queries, unchecked `err` returns, `unsafe` package usage |
-| Rust | `unsafe` blocks, `.unwrap()` on user input, `std::process::Command` with unsanitized args |
-| Ruby | `send()`/`public_send()` with user input, `ERB` without escaping, `YAML.load` on untrusted data |
+| SQL / ORM raw queries (`execute(`, `f"SELECT`, `.raw()`) | 3b (injection: SQL) |
+| `subprocess`, `os.system`, `child_process`, backticks | 3b (injection: command) |
+| File paths from user input, `open()`, `fs.readFile()` | 3b (injection: path traversal) |
+| `dangerouslySetInnerHTML`, `innerHTML`, `v-html`, Jinja `\|safe` | 3b (injection: template/XSS) |
+| Auth middleware, JWT, session code | 3c (authn/authz) |
+| API response payloads, logging | 3d (data exposure) |
+| `package.json` / `pyproject.toml` / `Cargo.toml` deps | 3e (dependency audit) |
+| CORS config, TLS config, cookie flags | 3e (config) |
+| Secrets, `.env`, config files | 3a (secrets) |
+| `eval`, `exec`, `pickle.loads`, `yaml.load` on untrusted data | 3f (language-specific) |
 
-### 3g. Fix approach
-- **Auto-fix** clear-cut issues: replace `shell=True` with argument lists, add parameterized queries, add `.gitignore` entries for secret files, set `Secure`/`HttpOnly` cookie flags.
-- **Flag but don't auto-fix** issues that require architectural decisions: adding auth middleware, implementing RBAC, choosing an encryption strategy. Mark with `// SECURITY(review): <description>`.
-- **Never remove security controls** — even if they look unused, they may be defense-in-depth. Ask the user first.
-- **Rotate exposed secrets** — if you find a secret committed to git history, flag it with **HIGH** severity and recommend rotation. Do not just delete the current reference; the secret is already in history.
+If none of the diff files match any category, print *"Security: no relevant surface touched, skipping"* and move on.
+
+In audit mode, run all categories.
+
+### 3b. Category details (only for categories the diff activated)
+
+Full details expanded below. Skip past subsections you didn't activate.
+
+**Secrets & credentials (3a):** hardcoded API keys / passwords / tokens; check `.gitignore` covers `.env`, `*.pem`, `*.key`; run `git log --all -p -- '*.env' '*.key' '*.pem'` to check history exposure; flag frontend bundles that ship secrets; default admin/admin credentials.
+
+**Injection (3b):** raw string concatenation in SQL/queries; `subprocess.run(shell=True)` or `os.system` with user input; user-supplied filenames in `open()` without a stay-within-parent check; user input in templates without escaping; `dangerouslySetInnerHTML`/`innerHTML`/`v-html`; user input into logs without sanitization (CRLF forging).
+
+**Authn/Authz (3c):** endpoints missing auth; endpoints checking auth but not authorization (any-user-can-hit-admin-route); session tokens in URLs; missing `HttpOnly`/`Secure`/`SameSite`; plaintext / MD5 / SHA1 password storage; missing login rate limiting; JWT `alg: none` accepted; JWT missing expiry.
+
+**Data exposure (3d):** passwords, tokens, internal IDs, PII in API responses; stack traces / SQL errors exposed to users; wildcard CORS in production; unencrypted PII at rest.
+
+**Dependencies & config (3e):** `npm audit` / `pip audit` / `cargo audit` — flag critical/high; outdated majors with known CVEs; `DEBUG=true` or `FLASK_ENV=development` in production; missing CSP / HSTS / X-Frame-Options / X-Content-Type-Options; HTTP URLs in production config; `verify=False` on TLS calls.
+
+**Language-specific (3f):**
+
+| Language | Watch for |
+|---|---|
+| Python | `eval`, `exec`, `pickle.loads` untrusted, `yaml.load` without SafeLoader, `subprocess(shell=True)`, `__import__` with user input |
+| JS/TS | `eval`, `Function()`, prototype pollution via `Object.assign`/spread on user input, dynamic `require()`, RegExp DoS |
+| Go | `fmt.Sprintf` in SQL, unchecked `err`, `unsafe` usage |
+| Rust | `unsafe` blocks, `.unwrap()` on user input, `Command` with unsanitized args |
+| Ruby | `send`/`public_send` with user input, `ERB` without escaping, `YAML.load` untrusted |
+
+### 3c. Fix approach
+
+- **Auto-fix** clear-cut issues: replace `shell=True` with argument lists, add parameterized queries, tighten `.gitignore`, add cookie flags.
+- **Flag but don't auto-fix** anything architectural (add auth middleware, choose encryption). Mark `// SECURITY(review): <description>`.
+- **Never remove security controls** even if they look unused — they may be defense-in-depth. Ask first.
+- **Rotate exposed secrets** — if a secret is in git history, flag **HIGH** severity. Deleting the current reference is not enough; the value is already in history and must be rotated externally.
 
 ---
 
 ## Phase 4 — Sanity Checks
 
-Run the project's own verification suite. Adapt commands to what exists:
+Verify tests pass. Prefer CI signal over local re-run when both are available and green.
+
+### 4a. Check CI first
+
+If the branch has been pushed and there's a CI provider configured (`.github/workflows`, `.gitlab-ci.yml`, etc.), check the last run:
 
 ```bash
-# Try each in order, stop at first that works:
-npm test          # Node / JS
-npm run lint
-npx tsc --noEmit  # TypeScript type check
+gh pr checks 2>/dev/null || gh run list --branch "$(git branch --show-current)" --limit 1 --json status,conclusion,createdAt
+```
 
-python -m pytest  # Python
+- **CI green within the last hour, on this SHA** → note *"CI passed on {SHA} at {time}"* and skip 4b. This is the common case in a mature project.
+- **CI failed or is running or is stale** → run 4b locally.
+- **No CI configured** → run 4b locally; also note *"no CI detected"* in the report so the user knows to consider adding one.
+
+### 4b. Local verification (fallback)
+
+Try each in order, stop at the first that works:
+
+```bash
+npm test               # Node / JS
+npm run lint
+npx tsc --noEmit       # TypeScript type check
+
+python -m pytest       # Python
 python -m mypy .
 
-cargo test        # Rust
+cargo test             # Rust
 cargo clippy -- -D warnings
 
-go test ./...     # Go
+go test ./...          # Go
 go vet ./...
 
-make test         # Generic Makefile
-just test         # Justfile
+make test              # Generic Makefile
+just test              # Justfile
 ```
 
 Record output. If tests fail:
-1. Determine if the failure is pre-existing or caused by Phase 1–3 changes.
-2. Fix failures caused by your own changes first.
-3. For pre-existing failures, list them in the summary report as "Pre-existing failures."
 
-If no test runner exists, note this as a finding and suggest adding one.
+1. Determine if the failure is *caused by this diff* or *pre-existing*.
+2. Fix diff-caused failures first.
+3. List pre-existing failures separately in the report — the user needs to know but this run is not the place to fix them unless they're one-line obvious.
 
 ---
 
-## Phase 5 — Documentation Updates
+## Phase 5 — Documentation Sync
 
-Goal: make docs reflect the current state of the code. **This phase is mandatory — update stale documentation directly, do not merely flag issues.**
+**Scope docs to what changed.** Do not scan every markdown file in the repo — only docs that reference the code / API / files this diff touched.
 
-### 5a. README.md
-Check every claim against reality: listed features, installation steps, API/CLI usage examples, environment variables, badges. **Fix all stale content in-place.**
+### 5a. Discover relevant docs
 
-### 5b. All project documentation files
-Scan the entire project for documentation files (`.md` files, `docs/` directories, spec files, plan files, deferred-issues trackers). For each file found:
-- Verify every factual claim against the current codebase (scoring weights, API endpoints, field names, feature lists, file paths, architecture descriptions).
-- **Update any stale content directly** — wrong numbers, missing features, outdated field names, removed capabilities, completed TODO items.
-- Remove or archive documentation for features that no longer exist.
-- Add documentation for features that exist in code but are not yet documented.
-- If a file tracks issues/TODOs (e.g., `DEFERRED_ISSUES.md`), check off items that have been addressed and add notes about partial fixes.
-- **Cross-doc consistency** — when two docs cover the same fact (e.g. README install steps vs `docs/setup.md`), reconcile contradictions. Pick the one that matches the code; update the other.
-- **Internal links** — flag broken relative links (`./foo.md`, `../api.md#section`) introduced when files are renamed or moved.
-- **Code snippets in docs** — sanity-check that example code matches current signatures (function names, argument order, env var names). Stale snippets are the most-copied form of stale documentation.
+For each file in scope, find docs that reference it:
 
-### 5c. Inline documentation
-- Update or add docstrings/JSDoc for functions changed in Phase 2–3
-- Remove doc comments for code deleted in Phase 1
-- Fix `@param` / `:type` annotations that no longer match actual signatures
+```bash
+# For each changed file / function / endpoint, find where it's mentioned:
+grep -rn "function_name\|/api/endpoint\|filename.py" docs/ README.md *.md 2>/dev/null
+```
+
+Also honor project-specific sync rules found in Phase 0. Example from Kiwi's `CLAUDE.md`:
+
+> Whenever new MCP tools, MCP-tool signature changes, or user-visible Kiwi behaviors land, four docs must update in lockstep: [list].
+
+When the current diff triggers such a rule, verify all four (or however many) actually updated. Missing sync-required docs is a first-class finding.
+
+### 5b. Update stale claims in-place
+
+For each doc that references touched surface:
+
+- Verify factual claims (function signatures, endpoint paths, field names, env var names).
+- **Fix stale content directly** — do not merely flag. Change the number, change the field name, mark completed TODO items.
+- Sanity-check code snippets against current signatures.
+- Flag broken relative links introduced when files moved.
+
+### 5c. Inline docs
+
+- Update docstrings / JSDoc for functions changed in Phase 2-3.
+- Remove doc comments for code deleted in Phase 3 (dead code removal, next phase).
+- Fix `@param` / `:type` annotations that no longer match signatures.
 
 ### 5d. CHANGELOG / release notes
-If `CHANGELOG.md` exists, add an entry under `## Unreleased` using Keep a Changelog format:
+
+If `CHANGELOG.md` exists, add an entry under `## Unreleased`:
+
 ```markdown
 ## [Unreleased]
 ### Removed
@@ -207,68 +257,103 @@ If `CHANGELOG.md` exists, add an entry under `## Unreleased` using Keep a Change
 - Fixed SQL injection in search endpoint
 ```
 
-### 5e. Architecture / design docs
-If `docs/`, `wiki/`, or `.md` files describe the system architecture, check them against the actual file structure and update any paths or module names that have changed.
-
 ---
 
 ## Phase 5.5 — Codex Cross-Check (conditional)
 
-Goal: get a second opinion from Codex on the cleaned, fixed, doc-synced state — and act on what it finds without spending Codex tokens on the fix.
-
-This phase is **gated**. Run it only when both conditions hold; otherwise skip silently and note the skip in the summary.
+Goal: second opinion from Codex on the cleaned, fixed, doc-synced state. **Codex finds, Claude fixes** — never round-trip Codex for the fix, that defeats the token-saving point.
 
 ### 5.5a. Detection gates
 
 Both must pass:
 
-1. **Host can invoke plugin slash commands.** This skill instructs the host agent to run `/codex:review`. Plugin slash commands of the form `/<plugin>:<command>` only work inside Claude Code. If you are the host agent and you cannot invoke such commands — e.g. you are running inside Codex CLI, Cursor, a non-Claude harness, or a stripped-down environment — skip this phase. (Corroborating signal, not a substitute for the capability check: `$CLAUDE_PLUGIN_ROOT` is set during plugin command execution. Do not rely on the existence of `~/.claude/plugins/` — that directory persists on disk after install regardless of which agent is currently running.)
-2. **`/codex:review` is installed.** Test:
+1. **Host supports subagents.** This skill dispatches the review via the `codex:codex-rescue` subagent (Agent tool). If the Agent tool with subagent types is unavailable — Codex CLI, Cursor, stripped-down harness — skip.
+2. **Codex plugin is installed.** Test:
    ```bash
    ls ~/.claude/plugins/cache/openai-codex/codex/*/commands/review.md 2>/dev/null \
      || ls ~/.claude/plugins/marketplaces/openai-codex/plugins/codex/commands/review.md 2>/dev/null
    ```
-   If neither path exists, skip.
 
-If either gate fails, log one line — e.g. `Phase 5.5 skipped: codex plugin not installed` or `Phase 5.5 skipped: host cannot invoke plugin slash commands` — and proceed to Phase 6.
+If either gate fails, log one line — *"Phase 5.5 skipped: {reason}"* — and continue.
 
 ### 5.5b. Run the review
 
-When both gates pass, invoke the slash command in the foreground:
+Dispatch through the `codex:codex-rescue` subagent (Agent tool, `subagent_type: "codex:codex-rescue"`). Its purpose is to forward any prompt to the Codex runtime and return Codex's response verbatim.
+
+**Review depth by mode:**
+
+- **quick / diff-review** → *standard review* prompt. Ask Codex to find implementation defects, missed edge cases, race conditions, cleanup gaps.
+- **audit / --deep** → *adversarial review* prompt. Ask Codex to challenge the design itself — assumptions, alternatives, tradeoffs, "would this fail in production".
+
+Also escalate to adversarial (even in diff-review mode) when the diff crosses any of these lines:
+
+- New subsystem or service module (not a modification)
+- New DB migration
+- Auth / permission surface changes
+- Cross-service integration (touches two or more external systems at once)
+- Feature flag or dark rollout added
+- Deleted data flows / anything irreversible
+
+Prompt template — keep it short. Codex reads the diff directly, do not paraphrase it back:
 
 ```
-/codex:review --wait
+Review the working-tree diff on this branch. Please focus specifically on:
+- <specific concern 1 — e.g. concurrency, state ordering, cleanup>
+- <specific concern 2 — e.g. auth surface, data exposure>
+- <specific concern 3 — e.g. anything the mode escalation above flagged>
+
+Review only, do not fix.
 ```
 
-Capture Codex's findings verbatim from the command output. Do not paraphrase. Do not ask Codex to fix anything — `/codex:review` is review-only by design, and the goal here is to keep Codex's token usage to the review pass only.
+Capture Codex's findings verbatim. If the subagent errors out, treat as a skip with the error logged.
 
-If `/codex:review` errors out (auth failure, network issue, codex CLI missing), treat it as a skip: log the error verbatim into the summary's phase-status line and proceed to Phase 6.
+### 5.5c. Triage
 
-### 5.5c. Triage and fix locally
-
-Walk Codex's findings and classify each one:
-
-- **Auto-fixable** — clear wrong → clear right, same bar as Phase 2/3. Fix it now, in the working tree, using your own (Claude) tokens. Do not call Codex again.
-- **Needs decision** — architectural, ambiguous, or stylistic. Add to "Unfixed Findings" with severity, file:line, and Codex's reasoning as the "Why not fixed" cell. Tag the source as `codex`.
-- **False positive** — Codex flagged something already correct or already fixed in earlier phases. Don't list each one; just count them and report `Codex false positives: N` in the summary.
-- **Conflicts with earlier phase** — Codex's finding contradicts a fix or deletion from Phases 1–3. Defer to "Unfixed Findings" with `Why not fixed: conflicts with earlier phase decision` so the user can adjudicate.
+- **Auto-fixable** — clear wrong → clear right. Fix now, in the working tree, with your (Claude) tokens.
+- **Needs decision** — architectural, ambiguous. Add to "Unfixed Findings" with severity, file:line, Codex's reasoning as the "Why not fixed" cell. Tag source as `codex`.
+- **False positive** — count them, report `Codex false positives: N`. Don't list each.
+- **Conflicts with earlier phase** — defer with `Why not fixed: conflicts with earlier phase decision`.
 
 ### 5.5d. Re-verify
 
-If Phase 5.5 made any code changes, re-run the project's test command from Phase 4 (just the test runner — full lint/typecheck only if Phase 4 caught something there). If a fix breaks tests, revert it and move that finding to "Unfixed Findings" with `Why not fixed: caused regression`.
-
-### 5.5e. Principles
-
-- **Codex finds, Claude fixes.** Never round-trip back to Codex for fixes — that's what defeats the token-saving point of this phase.
-- **Same fix bar as Phase 2/3.** Auto-fix only the unambiguous; defer the rest to the report.
-- **Verbatim findings.** When listing Codex-sourced items in the summary, preserve Codex's wording — don't rewrite it.
-- **Skip silently, report the skip.** A missing plugin or a wrong host shouldn't break the pipeline; it should be a one-line note in Phase 6.
+If Phase 5.5 made code changes, re-run Phase 4's test command. If a fix regresses tests, revert it and move the finding to "Unfixed" with `Why not fixed: caused regression`.
 
 ---
 
-## Phase 6 — Summary Report
+## Phase 6 — Dead Code Removal (diff-scoped)
 
-Produce a structured report in the conversation. Do **not** write it to a file unless the user asks.
+Ordered *after* bugs/security/tests/docs because it's the least-urgent phase. Run only on the diff's surface, not the whole codebase.
+
+**In diff mode:** flag only dead code *introduced or made-dead by this diff*:
+
+- New exported symbols never imported outside their own file
+- Callers removed by this diff whose callee is now unreferenced
+- Feature flags / env vars this diff no longer uses
+- Commented-out blocks added by this diff (any age)
+
+**In audit mode:** run full-codebase detectors:
+
+| Language | Tool |
+|---|---|
+| JS/TS | `npx ts-prune` or `npx unimported` |
+| Python | `vulture` |
+| Rust | `cargo udeps` |
+| Go | `go build ./... -gcflags="-e"` |
+| Generic | grep-based import tracing |
+
+### Removal rules
+
+- **Never remove** code marked `// TODO: re-enable`, `# noqa: dead`, or comparable "kept intentionally" markers without explicit user approval.
+- **Always** remove the import/require statement when you remove the last usage.
+- After removing, re-run Phase 4 to confirm nothing broke.
+
+---
+
+## Phase 7 — Summary Report
+
+Render only sections that have content. Empty sections are noise, not signal.
+
+Skeleton:
 
 ```
 ## Code Review Summary
@@ -276,55 +361,54 @@ Produce a structured report in the conversation. Do **not** write it to a file u
 ### Project
 <name, language, framework — one line>
 
-### Phase Status
-- **Phase 5.5 (Codex cross-check)**: <ran | skipped: reason>
-- **Codex false positives**: <count, only if phase ran>
+### Mode
+<quick | diff review, N files: … | audit, whole codebase>
 
 ### Changes Made
-- **Dead code removed**: <count> items — <brief list>
-- **Bugs fixed**: <count> — <brief list>
-- **Security issues fixed**: <count> — <brief list>
-- **Codex cross-check fixes**: <count> — <brief list>  *(omit row if Phase 5.5 skipped)*
-- **Docs updated**: <which files, what changed>
+[Only include rows with content. Omit the row entirely if 0.]
+- Simplify fixes: <count> — <brief list>
+- Bugs fixed: <count> — <brief list>
+- Security issues fixed: <count> — <brief list>
+- Dead code removed: <count> items — <brief list>
+- Codex cross-check fixes: <count> — <brief list>
+- Docs updated: <which files, what changed>
+
+### Verification
+- Tests: <M/N passing | CI green on {SHA} at {time} | pre-existing failures: …>
+- Build: <clean | warnings | failed>
 
 ### Security Findings
+[Only render the table if there are findings.]
 Severity levels: 🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM | 🔵 LOW | ℹ️ INFO
 
 | # | Severity | Category | Description | File:Line | Status |
 |---|----------|----------|-------------|-----------|--------|
 
-### Other Findings (not auto-fixed)
-- FIXME items: <list with file:line>
-- SECURITY(review) items: <list with file:line>
-- Pre-existing test failures: <list>
-- Missing tooling: <e.g., "no test suite found">
-
 ### Unfixed Findings
-List every finding that was **not** fixed — regardless of reason (low severity, needs architectural decision, ambiguous, out of scope). Include findings from both Claude's own analysis and Codex (Phase 5.5). For each:
+[Only render if there are unfixed items. Include findings from Claude and Codex, ranked by severity.]
 
 | # | Severity | Source | Category | Description | File:Line | Why not fixed |
 |---|----------|--------|----------|-------------|-----------|---------------|
-| 1 | 🔵 | claude | Config | Debug mode enabled by default | settings.py:5 | Low priority |
-| 2 | 🟡 | claude | Auth | No rate limiting on login | auth.py:80 | Architectural decision needed |
-| 3 | 🟡 | codex  | Logic | Possible race in cache eviction | cache.go:142 | Conflicts with earlier phase decision |
-
-After presenting the full report, ask the user:
-> "There are <N> unfixed findings above. Would you like me to fix any or all of them?"
-
-If the user says yes (to all or some), fix them now and update the report.
 
 ### Recommended Next Steps
-<3–5 actionable items, security fixes first>
+<3-5 actionable items, security fixes first — omit section if none>
 ```
+
+After presenting the report, if there are unfixed findings:
+
+> "There are <N> unfixed findings above. Want me to fix any / all of them?"
+
+If yes, fix and update the report.
 
 ---
 
 ## Principles
 
-- **Minimal blast radius** — prefer small, targeted changes over sweeping rewrites.
-- **Verify after each phase** — run the build/test after Phase 1 and again after Phase 2.
-- **Explain, don't just change** — for non-obvious changes, add a one-line comment or mention it in the summary.
-- **Ask before deleting anything ambiguous** — if you're unsure whether code is truly dead, ask.
+- **Minimal blast radius** — small targeted changes over sweeping rewrites.
+- **Verify after each phase** — re-run tests after 2 (bugs) and 3 (security).
+- **Explain, don't just change** — one-line comment or a mention in the summary for non-obvious changes.
+- **Ask before deleting anything ambiguous** — if unsure whether code is truly dead, ask.
 - **Never auto-commit** — present the summary, let the user decide what to stage.
-- **Security findings get priority** — list security issues first in the summary report.
-- **Never suppress security controls** — don't weaken auth, validation, or sanitization without explicit user approval.
+- **Security findings get priority** — list first in the summary.
+- **Never suppress security controls** without explicit user approval — even unused, they may be defense-in-depth.
+- **Right-size effort to the diff** — a 5-file UI polish PR does not need adversarial Codex review or full-codebase dead-code scans. Match the pipeline to the work.
